@@ -25,22 +25,22 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
         public void GetterSetterCheck_InitializerIsDefinedAndCustomSetterIsNull_CorrectResult()
         {
             var value = new InitPropertyValue<int>(_initializer);
-            Assert.AreEqual(InitializerResult, value.Value);
+            Assert.That(InitializerResult, Is.EqualTo(value.Value));
 
             const int newValue = 3 * InitializerResult;
             value.Value = newValue;
-            Assert.AreEqual(newValue, value.Value);
+            Assert.That(newValue, Is.EqualTo(value.Value));
         }
 
         [Test]
         public void GetterSetterCheck_InitializerAndCustomSetterIsDefined_CorrectResult()
         {
             var value = new InitPropertyValue<int>(_initializer, _customSetter);
-            Assert.AreEqual(InitializerResult, value.Value);
+            Assert.That(InitializerResult, Is.EqualTo(value.Value));
 
             const int newValue = 3 * InitializerResult;
             value.Value = newValue;
-            Assert.AreEqual(CustomSetterResult, value.Value);
+            Assert.That(CustomSetterResult, Is.EqualTo(value.Value));
         }
 
         [Test]
@@ -49,16 +49,16 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
             var value = new InitPropertyValue<int>();
 
             // нет инициализации - значение по умолчанию
-            Assert.AreEqual(default(int), value.Value);
+            Assert.That(default(int), Is.EqualTo(value.Value));
 
             // Устанавливаем initializer
             value.Initializer = _initializer;
 
-            Assert.AreEqual(InitializerResult, value.Value);
+            Assert.That(InitializerResult, Is.EqualTo(value.Value));
 
             const int newValue = 3 * InitializerResult;
             value.Value = newValue;
-            Assert.AreEqual(newValue, value.Value);
+            Assert.That(newValue, Is.EqualTo(value.Value));
         }
 
         [Test]
@@ -67,18 +67,18 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
             var value = new InitPropertyValue<int>();
 
             // нет инициализации - значение по умолчанию
-            Assert.AreEqual(default(int), value.Value);
+            Assert.That(default(int), Is.EqualTo(value.Value));
 
             // Проверка get/set
             const int newValue = 3 * InitializerResult;
             value.Value = newValue;
-            Assert.AreEqual(newValue, value.Value);
+            Assert.That(newValue, Is.EqualTo(value.Value));
 
             // Устанавливаем initializer
             value.Initializer = _initializer;
 
             // Так как уже был set, то initializer не применяется
-            Assert.AreEqual(newValue, value.Value);
+            Assert.That(newValue, Is.EqualTo(value.Value));
         }
     }
 }

@@ -22,7 +22,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var entityId = string.Empty;
             const int expected = 0;
             var actual = Content.VirtualFieldNode.ParseFieldTreeId(entityId);
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string entityId = "[100]";
             const int expected = 100;
             var actual = Content.VirtualFieldNode.ParseFieldTreeId(entityId);
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string entityId = "[100.200.300.400]";
             const int expected = 400;
             var actual = Content.VirtualFieldNode.ParseFieldTreeId(entityId);
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
         {
             const string expected = "[100]";
             var actual = Content.VirtualFieldNode.GetFieldTreeId(100);
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -92,14 +92,14 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
         {
             const string expected = "[100.200.300]";
             var actual = Content.VirtualFieldNode.GetFieldTreeId(300, "[100.200]");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
         public void NodeHasNotParent_ReturnNull_GetParentFieldTreeIdTest()
         {
             var actual = Content.VirtualFieldNode.GetParentFieldTreeId("[100]");
-            Assert.IsNull(actual);
+            Assert.That(actual, Is.Null);
         }
 
         [Test]
@@ -107,7 +107,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
         {
             const string expected = "[100.200.3.5.70]";
             var actual = Content.VirtualFieldNode.GetParentFieldTreeId("[100.200.3.5.70.100]");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -116,7 +116,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string expected = "Title";
             var helper = new VirtualContentHelper();
             var actual = helper.GetPersistentFieldName("Title");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -125,7 +125,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string expected = "Title";
             var helper = new VirtualContentHelper();
             var actual = helper.GetPersistentFieldName("m1.m2.m3.m4.Title");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string expected = "Header";
             var helper = new VirtualContentHelper();
             var actual = helper.ReplacePersistentFieldName("Title", "Header");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -143,7 +143,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             const string expected = "m1.m2.m3.m4.Header";
             var helper = new VirtualContentHelper();
             var actual = helper.ReplacePersistentFieldName("m1.m2.m3.m4.Title", "Header");
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -153,9 +153,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var argument = new[] { "[100.200.300]", "[400.500]", "[400.500.600]", "[700]" };
             var actual = Content.VirtualFieldNode.NormalizeFieldTreeIdSeq(argument).ToList();
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(expected.Length, actual.Count);
-            Assert.AreEqual(0, expected.Except(actual).Count());
+            Assert.That(actual, Is.Not.Null);
+            Assert.That(expected.Length, Is.EqualTo(actual.Count));
+            Assert.That(0, Is.EqualTo(expected.Except(actual).Count()));
         }
 
         [Test]
@@ -165,9 +165,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var argument = expected;
             var actual = Content.VirtualFieldNode.NormalizeFieldTreeIdSeq(argument).ToList();
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(expected.Length, actual.Count);
-            Assert.AreEqual(0, expected.Except(actual).Count());
+            Assert.That(actual, Is.Not.Null);
+            Assert.That(expected.Length, Is.EqualTo(actual.Count));
+            Assert.That(0, Is.EqualTo(expected.Except(actual).Count()));
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var helper = new VirtualContentHelper();
             var actual = helper.GenerateCreateJoinViewDdl(virtualContentId, joinRootContentId, virtualFieldsData);
 
-            Assert.IsTrue(actual.Equals(expected, StringComparison.InvariantCultureIgnoreCase));
+            Assert.That(actual.Equals(expected, StringComparison.InvariantCultureIgnoreCase), Is.True);
         }
 
         [Test]
@@ -255,7 +255,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var helper = new VirtualContentHelper();
             var actual = helper.GenerateCreateJoinAsyncViewDdl(virtualContentId, joinRootContentId, virtualFieldsData);
 
-            Assert.IsTrue(actual.Equals(expected, StringComparison.InvariantCultureIgnoreCase));
+            Assert.That(actual.Equals(expected, StringComparison.InvariantCultureIgnoreCase), Is.True);
         }
 
         [Test]
@@ -276,7 +276,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var helper = new VirtualContentHelper();
             var actual = helper.GenerateCreateUnionViewDdl(contentId, unionSourceContentIDs, contentFieldNames, fieldNameInSourceContents).ToLower();
 
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
 
         [Test]
@@ -298,7 +298,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Services
             var helper = new VirtualContentHelper();
             var actual = helper.GenerateCreateUnionAsyncViewDdl(contentId, unionSourceContentIDs, contentFieldNames, fieldNameInSourceContents).ToLower();
 
-            Assert.AreEqual(expected, actual);
+            Assert.That(expected, Is.EqualTo(actual));
         }
     }
 }

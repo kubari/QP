@@ -19,7 +19,7 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
                 { 2, new[] { 4, 5 } }
             };
 
-            Assert.IsTrue(GraphHepler.CheckCycleInGraph(graph));
+            Assert.That(GraphHepler.CheckCycleInGraph(graph), Is.True);
         }
 
         [Test]
@@ -32,7 +32,7 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
                 { 2, new[] { 4, 5, 1 } }
             };
 
-            Assert.IsFalse(GraphHepler.CheckCycleInGraph(graph));
+            Assert.That(GraphHepler.CheckCycleInGraph(graph), Is.False);
             graph = new Dictionary<int, int[]>
             {
                 { 0, new[] { 1, 2 } },
@@ -40,7 +40,7 @@ namespace QP8.WebMvc.NUnit.Tests.Utils
                 { 2, new[] { 4, 5, 3 } }
             };
 
-            Assert.IsFalse(GraphHepler.CheckCycleInGraph(graph));
+            Assert.That(GraphHepler.CheckCycleInGraph(graph), Is.False);
         }
     }
 }

@@ -56,39 +56,39 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
 
             dest.CopyFrom(source);
 
-            Assert.AreEqual(dest.ArticleId, 20);
-            Assert.AreEqual(dest.Id, 200);
+            Assert.That(dest.ArticleId, Is.EqualTo(20));
+            Assert.That(dest.Id, Is.EqualTo(200));
 
-            Assert.AreEqual(source.EndDate, dest.EndDate);
-            Assert.AreEqual(source.IsVisible, dest.IsVisible);
-            Assert.AreEqual(source.PublicationDate, dest.PublicationDate);
-            Assert.AreEqual(source.ScheduleType, dest.ScheduleType);
-            Assert.AreEqual(source.StartDate, dest.StartDate);
-            Assert.AreEqual(source.StartRightNow, dest.StartRightNow);
-            Assert.AreEqual(source.WithoutEndDate, dest.WithoutEndDate);
+            Assert.That(source.EndDate, Is.EqualTo(dest.EndDate));
+            Assert.That(source.IsVisible, Is.EqualTo(dest.IsVisible));
+            Assert.That(source.PublicationDate, Is.EqualTo(dest.PublicationDate));
+            Assert.That(source.ScheduleType, Is.EqualTo(dest.ScheduleType));
+            Assert.That(source.StartDate, Is.EqualTo(dest.StartDate));
+            Assert.That(source.StartRightNow, Is.EqualTo(dest.StartRightNow));
+            Assert.That(source.WithoutEndDate, Is.EqualTo(dest.WithoutEndDate));
 
-            Assert.AreEqual(source.Recurring.DayOfMonth, dest.Recurring.DayOfMonth);
-            Assert.AreEqual(source.Recurring.DayOfWeek, dest.Recurring.DayOfWeek);
-            Assert.AreEqual(source.Recurring.DaySpecifyingType, dest.Recurring.DaySpecifyingType);
-            Assert.AreEqual(source.Recurring.DurationUnit, dest.Recurring.DurationUnit);
-            Assert.AreEqual(source.Recurring.DurationValue, dest.Recurring.DurationValue);
-            Assert.AreEqual(source.Recurring.Month, dest.Recurring.Month);
-            Assert.AreEqual(source.Recurring.OnFriday, dest.Recurring.OnFriday);
-            Assert.AreEqual(source.Recurring.OnMonday, dest.Recurring.OnMonday);
-            Assert.AreEqual(source.Recurring.OnSaturday, dest.Recurring.OnSaturday);
-            Assert.AreEqual(source.Recurring.OnSunday, dest.Recurring.OnSunday);
-            Assert.AreEqual(source.Recurring.OnThursday, dest.Recurring.OnThursday);
-            Assert.AreEqual(source.Recurring.OnTuesday, dest.Recurring.OnTuesday);
-            Assert.AreEqual(source.Recurring.OnWednesday, dest.Recurring.OnWednesday);
-            Assert.AreEqual(source.Recurring.RepetitionEndDate, dest.Recurring.RepetitionEndDate);
-            Assert.AreEqual(source.Recurring.RepetitionNoEnd, dest.Recurring.RepetitionNoEnd);
-            Assert.AreEqual(source.Recurring.RepetitionStartDate, dest.Recurring.RepetitionStartDate);
-            Assert.AreEqual(source.Recurring.ScheduleRecurringType, dest.Recurring.ScheduleRecurringType);
-            Assert.AreEqual(source.Recurring.ScheduleRecurringValue, dest.Recurring.ScheduleRecurringValue);
-            Assert.AreEqual(source.Recurring.ShowEndTime, dest.Recurring.ShowEndTime);
-            Assert.AreEqual(source.Recurring.ShowLimitationType, dest.Recurring.ShowLimitationType);
-            Assert.AreEqual(source.Recurring.ShowStartTime, dest.Recurring.ShowStartTime);
-            Assert.AreEqual(source.Recurring.WeekOfMonth, dest.Recurring.WeekOfMonth);
+            Assert.That(source.Recurring.DayOfMonth, Is.EqualTo(dest.Recurring.DayOfMonth));
+            Assert.That(source.Recurring.DayOfWeek, Is.EqualTo(dest.Recurring.DayOfWeek));
+            Assert.That(source.Recurring.DaySpecifyingType, Is.EqualTo(dest.Recurring.DaySpecifyingType));
+            Assert.That(source.Recurring.DurationUnit, Is.EqualTo(dest.Recurring.DurationUnit));
+            Assert.That(source.Recurring.DurationValue, Is.EqualTo(dest.Recurring.DurationValue));
+            Assert.That(source.Recurring.Month, Is.EqualTo(dest.Recurring.Month));
+            Assert.That(source.Recurring.OnFriday, Is.EqualTo(dest.Recurring.OnFriday));
+            Assert.That(source.Recurring.OnMonday, Is.EqualTo(dest.Recurring.OnMonday));
+            Assert.That(source.Recurring.OnSaturday, Is.EqualTo(dest.Recurring.OnSaturday));
+            Assert.That(source.Recurring.OnSunday, Is.EqualTo(dest.Recurring.OnSunday));
+            Assert.That(source.Recurring.OnThursday, Is.EqualTo(dest.Recurring.OnThursday));
+            Assert.That(source.Recurring.OnTuesday, Is.EqualTo(dest.Recurring.OnTuesday));
+            Assert.That(source.Recurring.OnWednesday, Is.EqualTo(dest.Recurring.OnWednesday));
+            Assert.That(source.Recurring.RepetitionEndDate, Is.EqualTo(dest.Recurring.RepetitionEndDate));
+            Assert.That(source.Recurring.RepetitionNoEnd, Is.EqualTo(dest.Recurring.RepetitionNoEnd));
+            Assert.That(source.Recurring.RepetitionStartDate, Is.EqualTo(dest.Recurring.RepetitionStartDate));
+            Assert.That(source.Recurring.ScheduleRecurringType, Is.EqualTo(dest.Recurring.ScheduleRecurringType));
+            Assert.That(source.Recurring.ScheduleRecurringValue, Is.EqualTo(dest.Recurring.ScheduleRecurringValue));
+            Assert.That(source.Recurring.ShowEndTime, Is.EqualTo(dest.Recurring.ShowEndTime));
+            Assert.That(source.Recurring.ShowLimitationType, Is.EqualTo(dest.Recurring.ShowLimitationType));
+            Assert.That(source.Recurring.ShowStartTime, Is.EqualTo(dest.Recurring.ShowStartTime));
+            Assert.That(source.Recurring.WeekOfMonth, Is.EqualTo(dest.Recurring.WeekOfMonth));
         }
     }
 }

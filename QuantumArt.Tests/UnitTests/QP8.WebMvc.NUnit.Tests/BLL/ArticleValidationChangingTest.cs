@@ -51,11 +51,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
 
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
             article.CheckChangesValues(currentState, newModel);
 
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            CollectionAssert.AreEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
         }
 
         [Test]
@@ -70,11 +70,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var newModel = CreateValidatorAndRun(field.FormName, true, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Field.ExactType == FieldExactTypes.Boolean ? Converter.ToBoolean(v.Value).ToString() : v.Value);
 
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
             article.CheckChangesValues(currentState, newModel);
 
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Field.ExactType == FieldExactTypes.Boolean ? Converter.ToBoolean(v.Value).ToString() : v.Value);
-            CollectionAssert.AreEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
         }
 
         [Test]
@@ -91,11 +91,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var valuesState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
 
             article.CheckChangesValues(currentState, newModel);
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            CollectionAssert.AreEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
         }
 
         [Test]
@@ -113,11 +113,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
 
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
             article.CheckChangesValues(currentState, newModel);
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
 
-            CollectionAssert.AreEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
         }
 
         [Test]
@@ -134,11 +134,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var valuesState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
 
             article.CheckChangesValues(currentState, newModel);
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            CollectionAssert.AreEqual(currentState, newModel);
+            Assert.That(currentState, Is.EqualTo(newModel));
         }
 
         [Test]
@@ -155,11 +155,11 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Field.ExactType == FieldExactTypes.Boolean ? Converter.ToBoolean(v.Value).ToString() : v.Value);
 
-            Assert.AreNotEqual(currentState, newModel);
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
             article.CheckChangesValues(currentState, newModel);
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Field.ExactType == FieldExactTypes.Boolean ? Converter.ToBoolean(v.Value).ToString() : v.Value);
 
-            Assert.AreEqual(Converter.ToBoolean(currentState.First().Value), false);
+            Assert.That(Converter.ToBoolean(currentState.First().Value), Is.EqualTo(false));
         }
 
         private static string CreateSimpleValidatorText(string fieldName, object fieldValue)
@@ -195,7 +195,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             };
 
             var result = ValidationServices.ValidateModel(obj);
-            Assert.IsTrue(result.IsValid);
+            Assert.That(result.IsValid, Is.True);
             return model;
         }
     }

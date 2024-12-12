@@ -18,9 +18,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: WHERE ID IN (1,2) AND PARENT_ID IN (3,4) ", actual[0]);
-            Assert.AreEqual("2: WHERE ID IN (1,2) AND PARENT_ID IN (3,4) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: WHERE ID IN (1,2) AND PARENT_ID IN (3,4) ", Is.EqualTo(actual[0]));
+            Assert.That("2: WHERE ID IN (1,2) AND PARENT_ID IN (3,4) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -32,9 +32,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: WHERE ID NOT IN (10,20) AND PARENT_ID NOT IN (30,40) ", actual[0]);
-            Assert.AreEqual("2: WHERE ID NOT IN (10,20) AND PARENT_ID NOT IN (30,40) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: WHERE ID NOT IN (10,20) AND PARENT_ID NOT IN (30,40) ", Is.EqualTo(actual[0]));
+            Assert.That("2: WHERE ID NOT IN (10,20) AND PARENT_ID NOT IN (30,40) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -48,9 +48,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: WHERE ID IN (1,2) ", actual[0]);
-            Assert.AreEqual("2: WHERE ID IN (1,2) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: WHERE ID IN (1,2) ", Is.EqualTo(actual[0]));
+            Assert.That("2: WHERE ID IN (1,2) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -61,9 +61,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: WHERE PARENT_ID NOT IN (30,40) ", actual[0]);
-            Assert.AreEqual("2: WHERE PARENT_ID NOT IN (30,40) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: WHERE PARENT_ID NOT IN (30,40) ", Is.EqualTo(actual[0]));
+            Assert.That("2: WHERE PARENT_ID NOT IN (30,40) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -71,9 +71,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
         {
             var actual = FingerprintRepository.AddFilterStatement("ID", "PARENT_ID", new FingerprintEntityTypeSettings(), new[] { "1:{0}", "2:{0}" }).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: ", actual[0]);
-            Assert.AreEqual("2: ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: ", Is.EqualTo(actual[0]));
+            Assert.That("2: ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -87,9 +87,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }, false).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: AND ID IN (1,2) AND PARENT_ID IN (3,4) ", actual[0]);
-            Assert.AreEqual("2: AND ID IN (1,2) AND PARENT_ID IN (3,4) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: AND ID IN (1,2) AND PARENT_ID IN (3,4) ", Is.EqualTo(actual[0]));
+            Assert.That("2: AND ID IN (1,2) AND PARENT_ID IN (3,4) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -103,9 +103,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
                 ExceptedParentIDs = new[] { 30, 40 }
             }, new[] { "1:{0}", "2:{0}" }, false).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: AND ID IN (1,2) ", actual[0]);
-            Assert.AreEqual("2: AND ID IN (1,2) ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: AND ID IN (1,2) ", Is.EqualTo(actual[0]));
+            Assert.That("2: AND ID IN (1,2) ", Is.EqualTo(actual[1]));
         }
 
         [Test]
@@ -113,9 +113,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository
         {
             var actual = FingerprintRepository.AddFilterStatement("ID", "PARENT_ID", new FingerprintEntityTypeSettings(), new[] { "1:{0}", "2:{0}" }, false).ToArray();
 
-            Assert.AreEqual(2, actual.Length);
-            Assert.AreEqual("1: ", actual[0]);
-            Assert.AreEqual("2: ", actual[1]);
+            Assert.That(2, Is.EqualTo(actual.Length));
+            Assert.That("1: ", Is.EqualTo(actual[0]));
+            Assert.That("2: ", Is.EqualTo(actual[1]));
         }
     }
 }

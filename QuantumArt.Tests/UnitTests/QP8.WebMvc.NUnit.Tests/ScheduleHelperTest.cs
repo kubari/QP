@@ -12,8 +12,8 @@ namespace QP8.WebMvc.NUnit.Tests
         {
             var dt = new DateTime(2010, 3, 9, 5, 6, 7);
             var values = ScheduleHelper.GetSqlValuesFromScheduleDateTime(dt);
-            Assert.AreEqual(20100309, values.Item1);
-            Assert.AreEqual(50607, values.Item2);
+            Assert.That(20100309, Is.EqualTo(values.Item1));
+            Assert.That(50607, Is.EqualTo(values.Item1));
         }
 
         [Test]
@@ -21,8 +21,8 @@ namespace QP8.WebMvc.NUnit.Tests
         {
             var dt = new DateTime(2010, 3, 9, 15, 6, 7);
             var values = ScheduleHelper.GetSqlValuesFromScheduleDateTime(dt);
-            Assert.AreEqual(20100309, values.Item1);
-            Assert.AreEqual(150607, values.Item2);
+            Assert.That(20100309, Is.EqualTo(values.Item1));
+            Assert.That(150607, Is.EqualTo(values.Item2));
         }
 
         [Test]
@@ -30,7 +30,7 @@ namespace QP8.WebMvc.NUnit.Tests
         {
             const int sqlDate = 20100309;
             var dt = ScheduleHelper.GetScheduleDateFromSqlValues(sqlDate);
-            Assert.AreEqual(new DateTime(2010, 3, 9), dt);
+            Assert.That(new DateTime(2010, 3, 9), Is.EqualTo(dt));
         }
 
         [Test]
@@ -39,7 +39,7 @@ namespace QP8.WebMvc.NUnit.Tests
             const int sqlTime = 50607;
             var t = ScheduleHelper.GetScheduleTimeFromSqlValues(sqlTime);
 
-            Assert.AreEqual(new TimeSpan(5, 6, 7), t);
+            Assert.That(new TimeSpan(5, 6, 7), Is.EqualTo(t));
         }
 
         [Test]
@@ -48,12 +48,12 @@ namespace QP8.WebMvc.NUnit.Tests
             const int sqlDate = 20100309;
             const int sqlTime = 50607;
             var dt = ScheduleHelper.GetScheduleDateTimeFromSqlValues(sqlDate, sqlTime);
-            Assert.AreEqual(2010, dt.Year);
-            Assert.AreEqual(3, dt.Month);
-            Assert.AreEqual(9, dt.Day);
-            Assert.AreEqual(5, dt.Hour);
-            Assert.AreEqual(6, dt.Minute);
-            Assert.AreEqual(7, dt.Second);
+            Assert.That(2010, Is.EqualTo(dt.Year));
+            Assert.That(3, Is.EqualTo(dt.Month));
+            Assert.That(9, Is.EqualTo(dt.Day));
+            Assert.That(5, Is.EqualTo(dt.Hour));
+            Assert.That(6, Is.EqualTo(dt.Minute));
+            Assert.That(7, Is.EqualTo(dt.Second));
         }
 
         [Test]
@@ -62,7 +62,7 @@ namespace QP8.WebMvc.NUnit.Tests
             const int sqlDate = 20100309;
             const int sqlTime = 150607;
             var dt = ScheduleHelper.GetScheduleDateTimeFromSqlValues(sqlDate, sqlTime);
-            Assert.AreEqual(15, dt.Hour);
+            Assert.That(15, Is.EqualTo(dt.Hour));
         }
 
         [Test]
@@ -71,33 +71,33 @@ namespace QP8.WebMvc.NUnit.Tests
             const int sqlDate = 20100309;
             const int sqlTime = 0;
             var dt = ScheduleHelper.GetScheduleDateTimeFromSqlValues(sqlDate, sqlTime);
-            Assert.AreEqual(0, dt.Hour);
-            Assert.AreEqual(0, dt.Minute);
-            Assert.AreEqual(0, dt.Second);
+            Assert.That(0, Is.EqualTo(dt.Hour));
+            Assert.That(0, Is.EqualTo(dt.Minute));
+            Assert.That(0, Is.EqualTo(dt.Second));
         }
 
         [Test]
         public void GetDurationTest()
         {
             var duration = ScheduleHelper.GetDuration("mi", 1, DateTime.Now);
-            Assert.AreEqual(TimeSpan.FromMinutes(1), duration);
+            Assert.That(TimeSpan.FromMinutes(1), Is.EqualTo(duration));
 
             duration = ScheduleHelper.GetDuration("hh", 1, DateTime.Now);
-            Assert.AreEqual(TimeSpan.FromHours(1), duration);
+            Assert.That(TimeSpan.FromHours(1), Is.EqualTo(duration));
 
             duration = ScheduleHelper.GetDuration("dd", 1, DateTime.Now);
-            Assert.AreEqual(TimeSpan.FromDays(1), duration);
+            Assert.That(TimeSpan.FromDays(1), Is.EqualTo(duration));
 
             duration = ScheduleHelper.GetDuration("wk", 2, DateTime.Now);
-            Assert.AreEqual(TimeSpan.FromDays(14), duration);
+            Assert.That(TimeSpan.FromDays(14), Is.EqualTo(duration));
 
             var startDate = new DateTime(2011, 1, 1, 12, 15, 17);
 
             duration = ScheduleHelper.GetDuration("mm", 2, startDate);
-            Assert.AreEqual(new DateTime(2011, 3, 1), (startDate + duration).Date);
+            Assert.That(new DateTime(2011, 3, 1), Is.EqualTo((startDate + duration).Date));
 
             duration = ScheduleHelper.GetDuration("yy", 2, startDate);
-            Assert.AreEqual(new DateTime(2013, 1, 1), (startDate + duration).Date);
+            Assert.That(new DateTime(2013, 1, 1), Is.EqualTo((startDate + duration).Date));
         }
     }
 }

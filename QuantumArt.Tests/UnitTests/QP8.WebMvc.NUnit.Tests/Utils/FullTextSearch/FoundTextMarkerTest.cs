@@ -31,25 +31,25 @@ namespace QP8.WebMvc.NUnit.Tests.Utils.FullTextSearch
             };
 
             var res = FoundTextMarker.GetRelevantMarkedText("ЭТОТ ТАРИФ НА ИНТЕРНЕТ ОЧЕНЬ ВЫГОДЕН", forms, 10, "<b>", "</b>");
-            Assert.AreEqual("ЭТОТ <b>ТАРИФ</b> НА <b>ИНТЕРНЕТ</b>", res);
+            Assert.That("ЭТОТ <b>ТАРИФ</b> НА <b>ИНТЕРНЕТ</b>", Is.EqualTo(res));
 
             res = FoundTextMarker.GetRelevantMarkedText("Есть много новых тарифов которые стоят не дорого.", forms, 10, "<b>", "</b>");
-            Assert.AreEqual("много новых <b>тарифов</b> которые стоят", res);
+            Assert.That("много новых <b>тарифов</b> которые стоят", Is.EqualTo(res));
 
             res = FoundTextMarker.GetRelevantMarkedText("Сейчас очень быстрый доступ в ИНТЕРНЕТ.", forms, 10, "<b>", "</b>");
-            Assert.AreEqual("быстрый доступ в <b>ИНТЕРНЕТ</b>.", res);
+            Assert.That("быстрый доступ в <b>ИНТЕРНЕТ</b>.", Is.EqualTo(res));
 
             res = FoundTextMarker.GetRelevantMarkedText("Вообще левая строка", forms, 10, "<b>", "</b>");
-            Assert.AreEqual("Вообще левая", res);
+            Assert.That("Вообще левая", Is.EqualTo(res));
 
             res = FoundTextMarker.GetRelevantMarkedText("", forms, 10, "<b>", "</b>");
-            Assert.AreEqual(string.Empty, res);
+            Assert.That(string.Empty, Is.EqualTo(res));
 
             res = FoundTextMarker.GetRelevantMarkedText(null, forms, 10, "<b>", "</b>");
-            Assert.IsNull(res);
+            Assert.That(res, Is.Null);
 
             res = FoundTextMarker.GetRelevantMarkedText("этот тариф на интернет очень выгоден", Enumerable.Empty<string>(), 10, "<b>", "</b>");
-            Assert.AreEqual("этот тариф", res);
+            Assert.That("этот тариф", Is.EqualTo(res));
         }
     }
 }

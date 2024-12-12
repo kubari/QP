@@ -2287,7 +2287,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository.Articles
                         Assert.Fail($"\"{testData.Description}\" test is failed. No thrown exception.");
                     }
 
-                    Assert.AreEqual(testData.ExpectedValue, actual, $"\"{testData.Description}\" test is failed. Expected value: {testData.ExpectedValue}, actual value: {actual} ");
+                    Assert.That(testData.ExpectedValue, Is.EqualTo(actual), $"\"{testData.Description}\" test is failed. Expected value: {testData.ExpectedValue}, actual value: {actual} ");
                 }
                 catch (Exception ex)
                 {
@@ -2305,7 +2305,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository.Articles
 
                         Assert.Fail($"\"{testData.Description}\" test is failed. Unexpected exception: {ex.GetType()}.");
                     }
-                    Assert.IsInstanceOf(testData.ExpectedExceptionType, ex, $"\"{testData.Description}\" test is failed. Unexpected exception: {ex.GetType()}.");
+                    Assert.That(ex, Is.InstanceOf(testData.ExpectedExceptionType), $"\"{testData.Description}\" test is failed. Unexpected exception: {ex.GetType()}.");
                 }
             }
 

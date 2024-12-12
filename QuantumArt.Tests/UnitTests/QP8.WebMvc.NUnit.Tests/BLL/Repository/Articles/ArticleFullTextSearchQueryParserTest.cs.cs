@@ -49,7 +49,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository.Articles
 
             public bool TryParse(string queryString, out string result)
             {
-                Assert.AreEqual(_queryString, queryString);
+                Assert.That(_queryString, Is.EqualTo(queryString));
                 result = _result;
                 return !_hasError;
             }
@@ -320,10 +320,10 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository.Articles
                         Assert.Fail($"\"{testData.Description}\" test is failed. No thrown exception.");
                     }
 
-                    Assert.AreEqual(testData.ExpectedResult, result, $"\"{testData.Description}\" test is failed.");
-                    Assert.AreEqual(testData.ExpectedHasError, hasError, $"\"{testData.Description}\" test is failed.");
-                    Assert.AreEqual(testData.ExpectedFieldIdList, fieldIdList, $"\"{testData.Description}\" test is failed.");
-                    Assert.AreEqual(testData.ExpectedQueryString, queryString, $"\"{testData.Description}\" test is failed.");
+                    Assert.That(testData.ExpectedResult, Is.EqualTo(result), $"\"{testData.Description}\" test is failed.");
+                    Assert.That(testData.ExpectedHasError, Is.EqualTo(hasError), $"\"{testData.Description}\" test is failed.");
+                    Assert.That(testData.ExpectedFieldIdList, Is.EqualTo(fieldIdList), $"\"{testData.Description}\" test is failed.");
+                    Assert.That(testData.ExpectedQueryString, Is.EqualTo(queryString), $"\"{testData.Description}\" test is failed.");
                 }
                 catch (Exception ex)
                 {
@@ -332,7 +332,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL.Repository.Articles
                         Assert.Fail($"\"{testData.Description}\" test is failed. Unexpected exception.");
                     }
 
-                    Assert.IsInstanceOf(testData.ExpectedExceptionType, ex, $"\"{testData.Description}\" test is failed. Unexpected exception type.");
+                    Assert.That(ex, Is.InstanceOf(testData.ExpectedExceptionType), $"\"{testData.Description}\" test is failed. Unexpected exception type.");
                 }
             }
         }

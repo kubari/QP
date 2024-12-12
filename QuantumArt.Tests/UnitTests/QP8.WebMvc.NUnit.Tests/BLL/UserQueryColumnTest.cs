@@ -28,9 +28,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
 
             var intersect = collection1.Intersect(collection2, UserQueryColumn.TableNameIgnoreEqualityComparer).ToArray();
 
-            Assert.AreEqual(1, intersect.Length);
-            Assert.AreEqual(intersect[0].ColumnName.ToLowerInvariant(), "c1");
-            Assert.AreEqual(intersect[0].DbType.ToLowerInvariant(), "datetime");
+            Assert.That(1, Is.EqualTo(intersect.Length));
+            Assert.That(intersect[0].ColumnName.ToLowerInvariant(), Is.EqualTo("c1"));
+            Assert.That(intersect[0].DbType.ToLowerInvariant(), Is.EqualTo("datetime"));
         }
 
         [Test]
@@ -56,9 +56,9 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
 
             var intersect = collection1.Intersect(collection2).ToArray();
 
-            Assert.AreEqual(1, intersect.Length);
-            Assert.AreEqual(intersect[0].ColumnName.ToLowerInvariant(), "c1");
-            Assert.AreEqual(intersect[0].DbType.ToLowerInvariant(), "datetime");
+            Assert.That(1, Is.EqualTo(intersect.Length));
+            Assert.That(intersect[0].ColumnName.ToLowerInvariant(), Is.EqualTo("c1"));
+            Assert.That(intersect[0].DbType.ToLowerInvariant(), Is.EqualTo("datetime"));
         }
 
         [Test]
@@ -75,12 +75,12 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
 
             var result = source.OrderByDescending(c => c, UserQueryColumn.SelectBaseColumnComparer).ToArray();
 
-            Assert.AreEqual(source.Length, result.Length);
-            Assert.AreEqual("content_0", result[0].TableName);
-            Assert.AreEqual("content_10", result[1].TableName);
-            Assert.AreEqual("t1", result[2].TableName);
-            Assert.AreEqual("t0", result[3].TableName);
-            Assert.IsNull(result[4].TableName);
+            Assert.That(source.Length, Is.EqualTo(result.Length));
+            Assert.That("content_0", Is.EqualTo(result[0].TableName));
+            Assert.That("content_10", Is.EqualTo(result[1].TableName));
+            Assert.That("t1", Is.EqualTo(result[2].TableName));
+            Assert.That("t0", Is.EqualTo(result[3].TableName));
+            Assert.That(result[4].TableName, Is.Null);
         }
     }
 }
