@@ -132,22 +132,15 @@ public class PathHelper
                 .WithPrefix(path)
                 .WithRecursive(recursive)
                 .WithVersions(true);
-            var observable = _client.ListObjectsAsync(listObjectArgs);
+
             try
             {
-                Task.Run(async () =>
-                    await observable.Do(item =>
-                    {
-                        if (!item.IsDir && !onlyDirs || item.IsDir && onlyDirs)
-                        {
-                            var file = new FolderFile(item, path);
-                            if (string.IsNullOrWhiteSpace(pattern) || file.Name.Contains(pattern))
-                            {
-                                result.Add(file);
-                            }
-                        }
-                    }).LastOrDefaultAsync()
-                ).Wait();
+                result = _client.ListObjectsEnumAsync(listObjectArgs)
+                    .ToBlockingEnumerable()
+                    .Where(n => !n.IsDir && !onlyDirs || n.IsDir && onlyDirs)
+                    .Select(n => new FolderFile(n, path))
+                    .Where(n => string.IsNullOrWhiteSpace(pattern) || n.Name.Contains(pattern))
+                    .ToList();
             }
             catch (Exception e)
             {

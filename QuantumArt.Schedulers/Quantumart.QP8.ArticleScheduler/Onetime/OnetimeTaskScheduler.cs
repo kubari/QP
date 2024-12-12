@@ -1,5 +1,4 @@
 ﻿using System;
-using Npgsql.Logging;
 using Quantumart.QP8.ArticleScheduler.Interfaces;
 using Quantumart.QP8.ArticleScheduler.Recurring;
 using Quantumart.QP8.BLL;
@@ -7,8 +6,6 @@ using Quantumart.QP8.BLL.Services.API.ArticleScheduler;
 using Quantumart.QP8.Configuration.Models;
 using Quantumart.QP8.Constants;
 using NLog;
-using NLog.Fluent;
-
 
 namespace Quantumart.QP8.ArticleScheduler.Onetime
 {
