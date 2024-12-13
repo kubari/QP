@@ -1,16 +1,14 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
-using Quantumart.QP8.DAL.Entities;
 using Quantumart.QP8.Resources;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class TreeMenuRepository
+    internal static class TreeMenuRepository
     {
         /// <summary>
         /// Возвращает узел дерева
@@ -19,6 +17,7 @@ namespace Quantumart.QP8.BLL.Repository
         /// <param name="entityId">идентификатор сущности</param>
         /// <param name="parentEntityId">идентификатор родительской сущности</param>
         /// <param name="isFolder">признак является ли узел директорией</param>
+        /// <param name="groupItemCode"></param>
         /// <param name="loadChildNodes">признак, разрешающий предварительную загрузку первого уровня дочерних узлов</param>
         /// <param name="isGroup"></param>
         /// <returns>узел дерева</returns>
@@ -50,6 +49,9 @@ namespace Quantumart.QP8.BLL.Repository
         /// <param name="entityTypeCode">код типа сущности</param>
         /// <param name="parentEntityId">идентификатор родительской сущности</param>
         /// <param name="isFolder">признак является ли узел директорией</param>
+        /// <param name="isGroup"></param>
+        /// <param name="groupItemCode"></param>
+        /// <param name="entityId"></param>
         /// <returns>список дочерних узлов</returns>
         internal static IEnumerable<TreeNode> GetChildNodeList(string entityTypeCode, int? parentEntityId, bool isFolder, bool isGroup, string groupItemCode, int entityId = 0)
         {
@@ -123,7 +125,7 @@ namespace Quantumart.QP8.BLL.Repository
             return input.EndsWith("s") || input.EndsWith("x") ? $"{input}es" : $"{input}s";
         }
 
-        public static bool IsEntityTypeParent(string code)
+        private static bool IsEntityTypeParent(string code)
         {
             return EntityTypeCache.IsParentTypeForTree(
                 QPContext.EFContext, QPContext.CurrentCustomerCode, QPContext.CurrentLanguageId, code
@@ -132,46 +134,43 @@ namespace Quantumart.QP8.BLL.Repository
 
         private static List<TreeNode> GetNodesList(string entityTypeCode, int? parentEntityId, bool isFolder, bool isGroup, string groupItemCode, int entityId)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var ctx = QPContext.EFContext;
+            var connection = scope.DbConnection;
+            var user = ctx.UserSet.SingleOrDefault(x => x.Id == QPContext.CurrentUserId);
+            var enableContentGrouping = (entityTypeCode != EntityTypeCode.Content && entityTypeCode != EntityTypeCode.VirtualContent)
+                || user is { EnableContentGroupingInTree: true };
+
+            var areChildNodesParents = AreChildNodesParents(entityTypeCode, isFolder, isGroup, groupItemCode, enableContentGrouping);
+
+            var dataRows = TreeMenu.GetTreeChildNodes(
+                    ctx,
+                    connection,
+                    entityTypeCode,
+                    parentEntityId,
+                    isFolder,
+                    isGroup,
+                    groupItemCode,
+                    entityId,
+                    QPContext.CurrentUserId,
+                    QPContext.IsAdmin,
+                    QPContext.CurrentCustomerCode,
+                    enableContentGrouping
+                )
+                .ToList();
+
+            var nodesList = QPContext.Map<List<TreeNode>>(dataRows);
+            foreach (var node in nodesList)
             {
-                var ctx = QPContext.EFContext;
-                var connection = scope.DbConnection;
-                var user = ctx.UserSet.SingleOrDefault(x => x.Id == QPContext.CurrentUserId);
-                var enableContentGrouping = (entityTypeCode != EntityTypeCode.Content && entityTypeCode != EntityTypeCode.VirtualContent)
-                || user.EnableContentGroupingInTree;
-
-                var areChildNodesParents = AreChildNodesParents(entityTypeCode, isFolder, isGroup, groupItemCode, enableContentGrouping);
-
-                var dataRows = TreeMenu.GetTreeChildNodes(
-                        ctx,
-                        connection,
-                        entityTypeCode,
-                        parentEntityId,
-                        isFolder,
-                        isGroup,
-                        groupItemCode,
-                        entityId,
-                        QPContext.CurrentUserId,
-                        QPContext.IsAdmin,
-                        QPContext.CurrentCustomerCode,
-                        enableContentGrouping
-                        )
-                    .ToList();
-
-                var nodesList = MapperFacade.TreeNodeMapper.GetBizList(dataRows);
-                foreach (var node in nodesList)
-                {
-                    node.HasChildren = GetNodeHasChildren(node, ctx, connection, enableContentGrouping, areChildNodesParents);
-                }
-
-                return nodesList;
+                node.HasChildren = GetNodeHasChildren(node, ctx, connection, enableContentGrouping, areChildNodesParents);
             }
+
+            return nodesList;
         }
 
         private static bool AreChildNodesParents(string entityTypeCode, bool isFolder, bool isGroup, string groupItemCode, bool enableContentGrouping)
         {
-            var result = false;
-            result = isFolder && IsEntityTypeParent(entityTypeCode)
+            var result = isFolder && IsEntityTypeParent(entityTypeCode)
                 || isGroup && IsEntityTypeParent(groupItemCode);
 
             if ((isFolder && entityTypeCode == EntityTypeCode.Content  || entityTypeCode == EntityTypeCode.VirtualContent) && enableContentGrouping)

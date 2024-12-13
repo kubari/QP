@@ -1,4 +1,3 @@
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Processors.TreeProcessors;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers;
@@ -12,6 +11,8 @@ using System.Data.Common;
 using System.Linq;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
+using Quantumart.QP8.BLL.Services;
+using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Factories
 {
@@ -32,7 +33,7 @@ namespace Quantumart.QP8.BLL.Factories
                     var articleContextQueryParams = query.ContextQueryParams;
 
                     var sqlFilterParameters = new List<DbParameter>();
-                    var filters = MapperFacade.CustomFilterMapper.GetDalList(query?.Filter?.ToList());
+                    var filters = QPContext.Map<CustomFilter[]>(query?.Filter?.ToList());
                     var customFilter = CommonCustomFilters.GetFilterQuery(
                         scope.DbConnection,
                         sqlFilterParameters,
@@ -44,7 +45,7 @@ namespace Quantumart.QP8.BLL.Factories
                     );
 
                     var sqlHostFilterParameters = new List<DbParameter>();
-                    var hostFilters = MapperFacade.CustomFilterMapper.GetDalList(query?.HostFilter?.ToList());
+                    var hostFilters = QPContext.Map<CustomFilter[]>(query?.HostFilter?.ToList());
                     var hostFilter = CommonCustomFilters.GetFilterQuery(
                         scope.DbConnection,
                         sqlHostFilterParameters,

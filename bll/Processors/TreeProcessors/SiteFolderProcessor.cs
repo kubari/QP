@@ -37,7 +37,7 @@ namespace Quantumart.QP8.BLL.Processors.TreeProcessors
                 ? Enumerable.Repeat(folderRepository.GetSelfAndChildrenWithSync(_parentEntityId.Value, _entityId, _pathHelper), 1)
                 : folderRepository.GetChildrenWithSync(_parentEntityId.Value, _entityId, _pathHelper);
 
-            return Mapper.Map<IEnumerable<Folder>, List<EntityTreeItem>>(children);
+            return QPContext.Map<List<EntityTreeItem>>(children);
         }
     }
 }

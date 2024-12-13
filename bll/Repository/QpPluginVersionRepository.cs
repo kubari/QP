@@ -1,24 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Dynamic;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class QpPluginVersionRepository
+    internal static class QpPluginVersionRepository
     {
         internal static List<QpPluginVersionListItem> List(int pluginId, ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetQpPluginVersionsPage(scope.DbConnection, pluginId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.QpPluginVersionListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetQpPluginVersionsPage(scope.DbConnection, pluginId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<List<QpPluginVersionListItem>>(rows.ToList());
         }
 
         internal static QpPluginVersion GetById(int id, int pluginId = 0)
@@ -46,7 +42,7 @@ namespace Quantumart.QP8.BLL.Repository
             else
             {
                 var dal = QPContext.EFContext.PluginVersionSet.Include(n => n.LastModifiedByUser).SingleOrDefault(n => n.Id == id);
-                qpPluginVersion = MapperFacade.QpPluginVersionMapper.GetBizObject(dal);
+                qpPluginVersion = QPContext.Map<QpPluginVersion>(dal);
                 if (qpPluginVersion != null)
                 {
                     qpPluginVersion.Plugin = QpPluginRepository.GetById(qpPluginVersion.PluginId);

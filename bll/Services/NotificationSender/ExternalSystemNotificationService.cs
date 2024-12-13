@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using QP8.Infrastructure.Helpers;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Models.NotificationSender;
 using Quantumart.QP8.DAL.NotificationSender;
 
@@ -15,7 +14,7 @@ namespace Quantumart.QP8.BLL.Services.NotificationSender
                 .Where(entity => !entity.Sent && entity.CdcLastExecutedLsn.ProviderName == providerName)
                 .ToList();
 
-            return MapperFacade.SystemNotificationMapper.GetBizList(notifications);
+            return QPContext.Map<List<SystemNotificationModel>>(notifications);
         }
 
         public bool ExistsSentNotifications()

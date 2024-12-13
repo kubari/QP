@@ -1,5 +1,4 @@
 using System.Linq;
-using Quantumart.QP8.BLL.Facades;
 
 namespace Quantumart.QP8.BLL.Repository.ActionPermissions
 {
@@ -8,13 +7,13 @@ namespace Quantumart.QP8.BLL.Repository.ActionPermissions
         public EntityPermission ReadForUser(int parentId, int userId)
         {
             var permission = QPContext.EFContext.BackendActionPermissionSet.SingleOrDefault(p => p.ActionId == parentId && p.UserId == userId);
-            return MapperFacade.BackendActionPermissionMapper.GetBizObject(permission);
+            return QPContext.Map<EntityPermission>(permission);
         }
 
         public EntityPermission ReadForGroup(int parentId, int groupId)
         {
             var permission = QPContext.EFContext.BackendActionPermissionSet.SingleOrDefault(p => p.ActionId == parentId && p.GroupId == groupId);
-            return MapperFacade.BackendActionPermissionMapper.GetBizObject(permission);
+            return QPContext.Map<EntityPermission>(permission);
         }
     }
 }

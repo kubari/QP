@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Models.NotificationSender;
 using Quantumart.QP8.DAL.NotificationSender;
 
@@ -12,7 +11,7 @@ namespace Quantumart.QP8.BLL.Services.NotificationSender
         public List<ExternalNotificationModel> GetPendingNotifications()
         {
             var notifications = QPContext.EFContext.ExternalNotificationSet.Where(n => !n.Sent).ToList();
-            return MapperFacade.ExternalNotificationMapper.GetBizList(notifications);
+            return QPContext.Map<List<ExternalNotificationModel>>(notifications);
         }
 
         public bool ExistsSentNotifications()

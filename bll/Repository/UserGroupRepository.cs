@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
-using Quantumart.QP8.BLL.Services.DTO;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 using Quantumart.QP8.Utils;
@@ -17,7 +14,7 @@ namespace Quantumart.QP8.BLL.Repository
 {
     internal static class UserGroupRepository
     {
-        internal static IEnumerable<UserGroup> GetAllGroups() => MapperFacade.UserGroupMapper.GetBizList(QPContext.EFContext.UserGroupSet.ToList());
+        internal static IEnumerable<UserGroup> GetAllGroups() => QPContext.Map<UserGroup[]>(QPContext.EFContext.UserGroupSet.ToList());
 
         internal static IEnumerable<UserGroup> GetNtGroups()
         {
@@ -26,20 +23,20 @@ namespace Quantumart.QP8.BLL.Repository
                 .UserGroupSet
                 .Include(x => x.ParentGroupToGroupBinds).ThenInclude(y => y.ParentGroup)
                 .Where(f => f.NtGroup != null);
-            return MapperFacade.UserGroupMapper.GetBizList(groups.ToList());
+            return QPContext.Map<UserGroup[]>(groups.ToList());
         }
 
         internal static IEnumerable<UserGroupListItem> List(ListCommand cmd, out int totalRecords, List<int> selectedIds)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                cmd.SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? TranslateHelper.TranslateSortExpression(cmd.SortExpression) : null;
-                var rows = Common.GetUserGroupPage(scope.DbConnection, selectedIds, cmd.SortExpression, cmd.FilterExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
-                return MapperFacade.UserGroupListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            cmd.SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? TranslateHelper.TranslateSortExpression(cmd.SortExpression) : null;
+            var rows = Common.GetUserGroupPage(scope.DbConnection, selectedIds, cmd.SortExpression, cmd.FilterExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
+            return QPContext.Map<UserGroupListItem[]>(rows.ToList());
         }
 
-        internal static IEnumerable<UserGroup> GetEveryoneGroups() => MapperFacade.UserGroupMapper.GetBizList(QPContext.EFContext.UserGroupSet.Where(x => x.IsReadOnly && x.BuiltIn).ToList());
+        internal static IEnumerable<UserGroup> GetEveryoneGroups() => QPContext.Map<UserGroup[]>(
+            QPContext.EFContext.UserGroupSet.Where(x => x.IsReadOnly && x.BuiltIn).ToList()
+            );
 
 
         /// <summary>
@@ -49,12 +46,12 @@ namespace Quantumart.QP8.BLL.Repository
         internal static IEnumerable<UserGroup> GetList(IEnumerable<int> ids)
         {
             IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-            return MapperFacade.UserGroupMapper.GetBizList(QPContext.EFContext.UserGroupSet.Where(f => decIDs.Contains(f.Id)).ToList());
+            return QPContext.Map<UserGroup[]>(QPContext.EFContext.UserGroupSet.Where(f => decIDs.Contains(f.Id)).ToList());
         }
 
         internal static UserGroup GetPropertiesById(int id)
         {
-            return MapperFacade.UserGroupMapper.GetBizObject(QPContext.EFContext.UserGroupSet
+            return QPContext.Map<UserGroup>(QPContext.EFContext.UserGroupSet
                 .Include(x => x.ParentGroupToGroupBinds).ThenInclude(y => y.ParentGroup)
                 .Include(x => x.ChildGroupToGroupBinds).ThenInclude(y => y.ChildGroup)
                 .Include(x => x.UserGroupBinds).ThenInclude(y => y.User)
@@ -65,13 +62,13 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static UserGroup GetById(int id)
         {
-            return MapperFacade.UserGroupMapper.GetBizObject(QPContext.EFContext.UserGroupSet.SingleOrDefault(g => g.Id == id));
+            return QPContext.Map<UserGroup>(QPContext.EFContext.UserGroupSet.SingleOrDefault(g => g.Id == id));
         }
 
         internal static UserGroup UpdateProperties(UserGroup group)
         {
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.UserGroupMapper.GetDalObject(group);
+            var dal = QPContext.Map<UserGroupDAL>(group);
             dal.LastModifiedBy = QPContext.CurrentUserId;
 
             using (new QPConnectionScope())
@@ -114,7 +111,7 @@ namespace Quantumart.QP8.BLL.Repository
                     dalDb.UserGroupBinds.Remove(u);
                 }
             }
-            foreach (var u in MapperFacade.UserMapper.GetDalList(group.Users.ToList()))
+            foreach (var u in QPContext.Map<UserDAL[]>(group.Users.ToList()))
             {
                 if (!indbUserIDs.Contains(u.Id))
                 {
@@ -124,13 +121,13 @@ namespace Quantumart.QP8.BLL.Repository
             }
 
             entities.SaveChanges();
-            return MapperFacade.UserGroupMapper.GetBizObject(dal);
+            return QPContext.Map<UserGroup>(dal);
         }
 
         internal static UserGroup SaveProperties(UserGroup group)
         {
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.UserGroupMapper.GetDalObject(group);
+            var dal = QPContext.Map<UserGroupDAL>(group);
             dal.LastModifiedBy = QPContext.CurrentUserId;
             using (new QPConnectionScope())
             {
@@ -142,13 +139,13 @@ namespace Quantumart.QP8.BLL.Repository
 
             if (group.ParentGroup != null)
             {
-                var parentDal = MapperFacade.UserGroupMapper.GetDalObject(group.ParentGroup);
+                var parentDal = QPContext.Map<UserGroupDAL>(group.ParentGroup);
                 entities.UserGroupSet.Attach(parentDal);
                 var bind = new GroupToGroupBindDAL { ParentGroup = parentDal, ChildGroup = dal };
                 dal.ParentGroupToGroupBinds.Add(bind);
             }
 
-            foreach (var u in MapperFacade.UserMapper.GetDalList(group.Users.ToList()))
+            foreach (var u in QPContext.Map<UserDAL[]>(group.Users.ToList()))
             {
                 entities.UserSet.Attach(u);
                 var bind = new UserUserGroupBindDAL { UserGroup = dal, User = u };
@@ -156,7 +153,7 @@ namespace Quantumart.QP8.BLL.Repository
             }
 
             entities.SaveChanges();
-            return MapperFacade.UserGroupMapper.GetBizObject(dal);
+            return QPContext.Map<UserGroup>(dal);
         }
 
         /// <summary>
@@ -164,10 +161,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<int> SelectAdminDescendantGroupUserIDs(IEnumerable<int> userIds, int groupId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.UserGroups_SelectAdminDescendantGroupUserIDs(userIds, groupId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.UserGroups_SelectAdminDescendantGroupUserIDs(userIds, groupId, scope.DbConnection);
         }
 
         /// <summary>
@@ -175,10 +170,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static bool IsGroupAdminDescendant(int groupId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.UserGroups_IsGroupAdminDescendant(groupId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.UserGroups_IsGroupAdminDescendant(groupId, scope.DbConnection);
         }
 
         /// <summary>
@@ -186,10 +179,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static bool IsCyclePossible(int groupId, int parentGroupId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.UserGroups_IsCyclePossible(groupId, parentGroupId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.UserGroups_IsCyclePossible(groupId, parentGroupId, scope.DbConnection);
         }
 
         /// <summary>
@@ -197,10 +188,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<int> SelectWorkflowGroupUserIDs(int[] userIds)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.UserGroups_SelectWorkflowGroupUserIDs(userIds, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.UserGroups_SelectWorkflowGroupUserIDs(userIds, scope.DbConnection);
         }
 
         /// <summary>
@@ -208,10 +197,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<DataRow> GetAdministratorsHierarhy()
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.UserGroups_GetAdministratorsHierarhy(scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.UserGroups_GetAdministratorsHierarhy(scope.DbConnection);
         }
 
         internal static int CopyGroup(UserGroup group, int currentUserId)

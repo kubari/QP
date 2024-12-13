@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using Newtonsoft.Json;
 using QA.Validation.Xaml.ListTypes;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository;
@@ -3059,7 +3058,7 @@ namespace Quantumart.QP8.BLL
                 }
             }
 
-            return MapperFacade.CustomFilterMapper.GetBizList(filter).ToArray();
+            return QPContext.Map<CustomFilterItem[]>(filter).ToArray();
         }
 
         public void ParseStringEnumJson(string json)

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.Helpers;
@@ -22,45 +21,41 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<CustomActionListItem> List(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var dbType = QPContext.DatabaseType;
+            cmd.SortExpression = TranslateSortExpression(cmd.SortExpression, dbType);
+            var rows = Common.GetCustomActionList(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
+            var result = QPContext.Map<CustomActionListItem[]>(rows.ToList());
+            return result;
+        }
+
+        private static string TranslateSortExpression(string sortExpression, DatabaseType dbType)
+        {
+            if (string.IsNullOrEmpty(sortExpression))
             {
-                var dbType = QPContext.DatabaseType;
-                cmd.SortExpression = MapperFacade.CustomActionListItemRowMapper.TranslateSortExpression(cmd.SortExpression, dbType);
-                var rows = Common.GetCustomActionList(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
-                var result = MapperFacade.CustomActionListItemRowMapper.GetBizList(rows.ToList());
-                return result;
+                sortExpression = $"{SqlQuerySyntaxHelper.EscapeEntityName(dbType, "ORDER")} ASC";
             }
+
+            var replaces = new Dictionary<string, string>
+            {
+                { "LastModifiedByUser", "LOGIN" },
+                { "ActionTypeName", "ACTION_TYPE_NAME" },
+                { "EntityTypeName", "ENTITY_TYPE_NAME" }
+            };
+
+            return TranslateHelper.TranslateSortExpression(sortExpression, replaces);
         }
 
         internal static CustomAction GetById(int id)
         {
-            var result = BackendActionCache.CustomActions.SingleOrDefault(a => a.Id == id);
+            var result = BackendActionCache.CustomActions.Single(a => a.Id == id);
             result.LastModifiedByUser = UserRepository.GetById(result.LastModifiedBy, true);
             return result;
         }
 
-        // internal static CustomAction GetRealById(int id)
-        // {
-        //     var customAction = MapperFacade.CustomActionMapper.GetBizObject(
-        //             QPContext.EFContext.CustomActionSet
-        //                 .Include(b => b.ContentCustomActionBinds)
-        //                 .Include(b => b.SiteCustomActionBinds)
-        //                 .Include(b => b.Action)
-        //                 .SingleOrDefault()
-        //         );
-        //
-        //         foreach (var c in customActions)
-        //         {
-        //             c.Action = backendActions.FirstOrDefault(n => n.Id == c.ActionId);
-        //         }
-        //
-        //         return customActions;
-        //     }
-        // }
-
         internal static CustomAction GetByCode(string code)
         {
-            var result = BackendActionCache.CustomActions.SingleOrDefault(a => a.Action.Code == code);
+            var result = BackendActionCache.CustomActions.Single(a => a.Action.Code == code);
             result.LastModifiedByUser = UserRepository.GetById(result.LastModifiedBy, true);
             return result;
         }
@@ -74,7 +69,7 @@ namespace Quantumart.QP8.BLL.Repository
         {
             GetById(customAction.Id);
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.CustomActionMapper.GetDalObject(customAction);
+            var dal = QPContext.Map<CustomActionDAL>(customAction);
             dal.LastModifiedBy = QPContext.CurrentUserId;
             using (new QPConnectionScope())
             {
@@ -83,7 +78,7 @@ namespace Quantumart.QP8.BLL.Repository
 
             entities.Entry(dal).State = EntityState.Modified;
 
-            var dal2 = MapperFacade.BackendActionMapper.GetDalObject(customAction.Action);
+            var dal2 = QPContext.Map<CustomActionDAL>(customAction.Action);
             entities.Entry(dal2).State = EntityState.Modified;
 
             // Toolbar Buttons
@@ -92,7 +87,7 @@ namespace Quantumart.QP8.BLL.Repository
                 entities.Entry(t).State = EntityState.Deleted;
             }
 
-            foreach (var t in MapperFacade.ToolbarButtonMapper.GetDalList(customAction.Action.ToolbarButtons.ToList()))
+            foreach (var t in QPContext.Map<ToolbarButtonDAL[]>(customAction.Action.ToolbarButtons.ToList()))
             {
                 entities.Entry(t).State = EntityState.Added;
             }
@@ -117,7 +112,7 @@ namespace Quantumart.QP8.BLL.Repository
                 oldContextMenuId = c.ContextMenuId;
                 entities.Entry(c).State = EntityState.Deleted;
             }
-            foreach (var c in MapperFacade.ContextMenuItemMapper.GetDalList(customAction.Action.ContextMenuItems.ToList()))
+            foreach (var c in QPContext.Map<ContextMenuItemDAL[]>(customAction.Action.ContextMenuItems.ToList()))
             {
                 entities.Entry(c).State = EntityState.Added;
             }
@@ -170,7 +165,7 @@ namespace Quantumart.QP8.BLL.Repository
             }
 
             SetBottomSeparator(customAction.Action.EntityType.ContextMenu.Id);
-            var updated = MapperFacade.CustomActionMapper.GetBizObject(dal);
+            var updated = QPContext.Map<CustomAction>(dal);
             BackendActionCache.ResetForCustomerCode();
 
             return updated;
@@ -179,7 +174,7 @@ namespace Quantumart.QP8.BLL.Repository
         internal static CustomAction Save(CustomAction customAction)
         {
             var entities = QPContext.EFContext;
-            var actionDal = MapperFacade.BackendActionMapper.GetDalObject(customAction.Action);
+            var actionDal = QPContext.Map<BackendActionDAL>(customAction.Action);
             entities.Entry(actionDal).State = EntityState.Added;
 
             EntityObject.VerifyIdentityInserting(EntityTypeCode.BackendAction, actionDal.Id, customAction.ForceActionId);
@@ -197,7 +192,7 @@ namespace Quantumart.QP8.BLL.Repository
             entities.SaveChanges();
             DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.BackendAction);
 
-            var customActionDal = MapperFacade.CustomActionMapper.GetDalObject(customAction);
+            var customActionDal = QPContext.Map<CustomActionDAL>(customAction);
             customActionDal.LastModifiedBy = QPContext.CurrentUserId;
             customActionDal.Action = actionDal;
 
@@ -217,14 +212,14 @@ namespace Quantumart.QP8.BLL.Repository
             entities.SaveChanges();
             DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.CustomAction);
 
-            var buttonsToInsert = MapperFacade.ToolbarButtonMapper.GetDalList(customAction.Action.ToolbarButtons.ToList());
+            var buttonsToInsert = QPContext.Map<ToolbarButtonDAL[]>(customAction.Action.ToolbarButtons.ToList());
             foreach (var item in buttonsToInsert)
             {
                 item.ActionId = customActionDal.ActionId;
                 entities.Entry(item).State = EntityState.Added;
             }
 
-            var cmiToInsert = MapperFacade.ContextMenuItemMapper.GetDalList(customAction.Action.ContextMenuItems.ToList());
+            var cmiToInsert = QPContext.Map<ContextMenuItemDAL[]>(customAction.Action.ContextMenuItems.ToList());
             foreach (var item in cmiToInsert)
             {
                 item.ActionId = customActionDal.ActionId;
@@ -255,8 +250,8 @@ namespace Quantumart.QP8.BLL.Repository
             var contextMenuId = entities.EntityTypeSet.Single(t => t.Id == customAction.Action.EntityTypeId).ContextMenuId;
             SetBottomSeparator(contextMenuId);
 
-            var updated = MapperFacade.CustomActionMapper.GetBizObject(customActionDal);
-            updated.Action = MapperFacade.BackendActionMapper.GetBizObject(actionDal);
+            var updated = QPContext.Map<CustomAction>(customActionDal);
+            updated.Action =  QPContext.Map<BackendAction>(actionDal);
             BackendActionCache.ResetForCustomerCode();
             return updated;
         }
@@ -302,8 +297,6 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static CustomAction Copy(CustomAction action)
         {
-            var oldId = action.Id;
-            var oldName = action.Name;
             action.Name = MutateName(action.Name);
             if (action.Alias != null)
             {
@@ -352,11 +345,6 @@ namespace Quantumart.QP8.BLL.Repository
             return QPContext.EFContext.CustomActionSet.Any(
                 a => a.Alias != null && a.Alias.Equals(alias)
             );
-        }
-
-        private static IEnumerable<int> ExistOrders()
-        {
-            return QPContext.EFContext.CustomActionSet.Select(s => s.Order);
         }
 
         internal static IEnumerable<int> GetActionOrdersForEntityType(int entityTypeId)

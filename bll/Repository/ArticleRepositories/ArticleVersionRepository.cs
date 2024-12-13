@@ -4,13 +4,12 @@ using System.Data;
 using System.Linq;
 using System.Linq.Dynamic;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 {
-    internal class ArticleVersionRepository
+    internal static class ArticleVersionRepository
     {
         /// <summary>
         /// Возвращает список версий статей
@@ -32,7 +31,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
                 result = result.OrderBy(command.SortExpression);
             }
 
-            return MapperFacade.ArticleVersionMapper.GetBizList(result.ToList());
+            return QPContext.Map<List<ArticleVersion>>(result.ToList());
         }
 
         /// <summary>
@@ -86,7 +85,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             else
             {
                 var articleVersionDal = QPContext.EFContext.ArticleVersionSet.Include(n => n.LastModifiedByUser).SingleOrDefault(n => n.Id == id);
-                articleVersion = MapperFacade.ArticleVersionMapper.GetBizObject(articleVersionDal);
+                articleVersion = QPContext.Map<ArticleVersion>(articleVersionDal);
                 if (articleVersion != null)
                 {
                     articleVersion.Article = ArticleRepository.GetById(articleVersion.ArticleId);

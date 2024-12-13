@@ -1,20 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
-
-// using System.Data.Entity.Core.EntityClient;
-// using System.Data.Entity.Core.Mapping;
-// using System.Data.Entity.Core.Metadata.Edm;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Transactions;
-using System.Xml;
-using System.Xml.Linq;
-using AutoMapper;
 using Npgsql;
 using QP8.Infrastructure;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.Configuration;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
@@ -39,32 +30,6 @@ namespace Quantumart.QP8.BLL
         public DatabaseType DbType { get; set; }
 
         public DatabaseType CurrentDbType => Current.DbType;
-
-        static QPConnectionScope()
-        {
-            if (!IsMapperInitialized())
-            {
-                Mapper.Initialize(MapperFacade.CreateAllMappings);
-            }
-        }
-
-        public static bool IsMapperInitialized()
-        {
-            try
-            {
-                Mapper.Configuration.AssertConfigurationIsValid();
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
-            }
-            catch (AutoMapperConfigurationException)
-            {
-                return true;
-            }
-
-            return true;
-        }
 
         public QPConnectionScope()
             : this(QPContext.CurrentDbConnectionInfo)
@@ -155,10 +120,8 @@ namespace Quantumart.QP8.BLL
                 Current._efConnection = dbConnection;
                 if (Transaction.Current == null && !usePostgres)
                 {
-                    using (var cmd = DbCommandFactory.Create("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED", dbConnection as SqlConnection))
-                    {
-                        cmd.ExecuteNonQuery();
-                    }
+                    using var cmd = DbCommandFactory.Create("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED", dbConnection as SqlConnection);
+                    cmd.ExecuteNonQuery();
                 }
             }
         }

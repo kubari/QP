@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
-using Quantumart.QP8.BLL.Mappers;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.Resources;
@@ -14,25 +12,21 @@ namespace Quantumart.QP8.BLL.Repository
 {
     internal class SiteFolderRepository : FolderRepository
     {
-        internal DbSet<SiteFolderDAL> CurrentSet => QPContext.EFContext.SiteFolderSet;
-
-        internal SiteFolderMapper CurrentMapper => MapperFacade.SiteFolderMapper;
-
-        internal SiteFolderRowMapper RowMapper = MapperFacade.SiteFolderRowMapper;
+        private DbSet<SiteFolderDAL> CurrentSet => QPContext.EFContext.SiteFolderSet;
 
         public override Folder GetById(int id)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.Include("LastModifiedByUser").SingleOrDefault(s => s.Id == id));
+            return QPContext.Map<SiteFolder>(CurrentSet.Include("LastModifiedByUser").SingleOrDefault(s => s.Id == id));
         }
 
         public override Folder GetChildByName(int parentId, string name)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.SingleOrDefault(s => s.ParentId == parentId && s.Name == name));
+            return QPContext.Map<SiteFolder>(CurrentSet.SingleOrDefault(s => s.ParentId == parentId && s.Name == name));
         }
 
         public override Folder GetRoot(int parentEntityId)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.SingleOrDefault(s => s.SiteId == parentEntityId && s.ParentId == null));
+            return QPContext.Map<SiteFolder>(CurrentSet.SingleOrDefault(s => s.SiteId == parentEntityId && s.ParentId == null));
         }
 
         public override Folder CreateInDb(Folder folder) => DefaultRepository.Save<SiteFolder, SiteFolderDAL>((SiteFolder)folder);
@@ -41,19 +35,17 @@ namespace Quantumart.QP8.BLL.Repository
 
         public override IEnumerable<Folder> GetAllChildrenFromDb(int parentId)
         {
-            return CurrentMapper.GetBizList(CurrentSet.Where(c => c.ParentId == parentId).ToList());
+            return QPContext.Map<SiteFolder[]>(CurrentSet.Where(c => c.ParentId == parentId).ToList());
         }
 
         public override IEnumerable<Folder> GetChildrenFromDb(int parentEntityId, int parentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return RowMapper.GetBizList(
-                    Common.GetChildFoldersList(scope.DbConnection, QPContext.EFContext, QPContext.IsAdmin, QPContext.CurrentUserId,
-                        parentEntityId, true, parentId, PermissionLevel.List, false, out var totalRecords)
-                        .ToList()
-                );
-            }
+            using var scope = new QPConnectionScope();
+            return QPContext.Map<SiteFolder[]>(
+                Common.GetChildFoldersList(scope.DbConnection, QPContext.EFContext, QPContext.IsAdmin, QPContext.CurrentUserId,
+                        parentEntityId, true, parentId, PermissionLevel.List, false, out _)
+                    .ToList()
+            );
         }
 
         public override IEnumerable<Folder> GetChildrenWithSync(int parentEntityId, int? parentId, PathHelper pathHelper)
@@ -86,8 +78,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         protected override void DeleteFromDb(Folder folder)
         {
-            Action<Folder> traverse = null;
-            traverse = f =>
+            void Traverse(Folder f)
             {
                 f.LoadAllChildren = true;
                 f.AutoLoadChildren = true;
@@ -95,14 +86,14 @@ namespace Quantumart.QP8.BLL.Repository
                 {
                     foreach (var sb in f.Children)
                     {
-                        traverse((Folder)sb);
+                        Traverse((Folder)sb);
                     }
                 }
 
                 DefaultRepository.Delete<SiteFolderDAL>(f.Id);
-            };
+            }
 
-            traverse(folder);
+            Traverse(folder);
         }
     }
 }

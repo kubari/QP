@@ -22,10 +22,12 @@ namespace Quantumart.QP8.WebMvc.Controllers
     public class ArticleVersionController : AuthQpController
     {
         private readonly PathHelper _pathHelper;
+        private readonly IMapper _mapper;
 
-        public ArticleVersionController(PathHelper pathHelper)
+        public ArticleVersionController(PathHelper pathHelper, IMapper mapper)
         {
             _pathHelper = pathHelper;
+            _mapper = mapper;
         }
 
         [ExceptionResult(ExceptionResultMode.UiAction)]
@@ -50,7 +52,7 @@ namespace Quantumart.QP8.WebMvc.Controllers
         {
             var listCommand = GetListCommand(page, pageSize, orderBy);
             var serviceResult = ArticleVersionService.List(parentId, listCommand);
-            var result = Mapper.Map<List<ArticleVersion>, List<ArticleVersionListItem>>(serviceResult);
+            var result = _mapper.Map<List<ArticleVersion>, List<ArticleVersionListItem>>(serviceResult);
             return new TelerikResult(result, result.Count);
         }
 

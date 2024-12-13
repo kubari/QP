@@ -22,13 +22,13 @@ namespace QP8.Services.Tests.CdcDataImportTests
         {
             _fixture = new Fixture().Customize(new AutoMoqCustomization(){ ConfigureMembers = true});
             _fixture.Customizations.Add(new NameValueSpecimenBuilder());
-            Mapper.Reset();
-            Mapper.Initialize(cfg =>
+
+            var config = new MapperConfiguration(cfg =>
             {
                 cfg.CreateMap<CdcTableTypeModel, CdcTableTypeModel>();
                 cfg.CreateMap<CdcEntityModel, CdcEntityModel>();
             });
-            Mapper.AssertConfigurationIsValid();
+            config.AssertConfigurationIsValid();
 
             QPContext.CurrentDbConnectionString = _fixture.Create<string>();
         }

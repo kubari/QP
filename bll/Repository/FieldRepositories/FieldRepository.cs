@@ -4,10 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Linq.Expressions;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QP8.Plugins.Contract;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
@@ -25,7 +23,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
     {
         internal static IQueryable<FieldDAL> DefaultFieldQuery => QPContext.EFContext.FieldSet.Include("Content").Include("Type").Include("LastModifiedByUser");
 
-        internal static IQueryable<FieldDAL> DefaultLightFieldQuery => QPContext.EFContext.FieldSet.Include("Type").Include("LastModifiedByUser");
+        private static IQueryable<FieldDAL> DefaultLightFieldQuery => QPContext.EFContext.FieldSet.Include("Type").Include("LastModifiedByUser");
 
         Field IFieldRepository.GetById(int fieldId) => GetById(fieldId);
 
@@ -33,29 +31,29 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         IList<Field> IFieldRepository.GetByNames(int contentId, IList<string> fieldNames)
         {
-            var list = MapperFacade.FieldMapper.GetBizList(DefaultLightFieldQuery.Where(f => f.ContentId == contentId && fieldNames.Contains(f.Name)).ToList());
+            var list = QPContext.Map<Field[]>(DefaultLightFieldQuery.Where(f => f.ContentId == contentId && fieldNames.Contains(f.Name)).ToList());
             ApplyContentToFields(list, contentId);
             return list;
         }
 
         Field IFieldRepository.GetByOrder(int contentId, int order)
         {
-            return MapperFacade.FieldMapper.GetBizObject(DefaultFieldQuery.SingleOrDefault(f => f.ContentId == contentId && f.Order == order));
+            return QPContext.Map<Field>(DefaultFieldQuery.SingleOrDefault(f => f.ContentId == contentId && f.Order == order));
         }
 
         IEnumerable<Field> IFieldRepository.GetRelatedO2MFields(int fieldId)
         {
-            return MapperFacade.FieldMapper.GetBizList(DefaultFieldQuery.Where(f => f.RelationId == fieldId).ToList());
+            return QPContext.Map<Field[]>(DefaultFieldQuery.Where(f => f.RelationId == fieldId).ToList());
         }
 
         Field IFieldRepository.GetByBackRelationId(int fieldId)
         {
-            return MapperFacade.FieldMapper.GetBizObject(DefaultFieldQuery.SingleOrDefault(f => f.BackRelationId == fieldId && f.Content.VirtualType == VirtualType.None));
+            return QPContext.Map<Field>(DefaultFieldQuery.SingleOrDefault(f => f.BackRelationId == fieldId && f.Content.VirtualType == VirtualType.None));
         }
 
         IEnumerable<Field> IFieldRepository.GetChildList(int fieldId)
         {
-            return MapperFacade.FieldMapper.GetBizList(DefaultFieldQuery.Where(f => f.ParentFieldId == fieldId).ToList());
+            return QPContext.Map<Field[]>(DefaultFieldQuery.Where(f => f.ParentFieldId == fieldId).ToList());
         }
 
         bool IFieldRepository.HasAnyAggregators(int fieldId)
@@ -65,16 +63,14 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         VisualEditFieldParams IFieldRepository.GetVisualEditFieldParams(int fieldId)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var dt = Common.GetVisualEditFieldParams(scope.DbConnection, fieldId);
+            if (dt.Rows.Count == 0)
             {
-                var dt = Common.GetVisualEditFieldParams(scope.DbConnection, fieldId);
-                if (dt.Rows.Count == 0)
-                {
-                    throw new ApplicationException(string.Format(FieldStrings.FieldNotFound, fieldId));
-                }
-
-                return Mapper.Map<DataRow, VisualEditFieldParams>(dt.Rows[0]);
+                throw new ApplicationException(string.Format(FieldStrings.FieldNotFound, fieldId));
             }
+
+            return QPContext.Map<VisualEditFieldParams>(dt.Rows[0]);
         }
 
         IEnumerable<Article> IFieldRepository.GetActiveArticlesForM2MField(int fieldId)
@@ -86,7 +82,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             }
 
             var entities = QPContext.EFContext;
-            return MapperFacade.ArticleMapper.GetBizList(entities.ArticleSet.Include("Content").Where(x => activeIds.Contains((int)x.Id)).ToList());
+            return QPContext.Map<Article[]>(entities.ArticleSet.Include("Content").Where(x => activeIds.Contains((int)x.Id)).ToList());
         }
 
         int IFieldRepository.GetTextFieldMaxLength(Field dbField)
@@ -96,15 +92,13 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 return 0;
             }
 
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (dbField.ExactType == FieldExactTypes.String)
             {
-                if (dbField.ExactType == FieldExactTypes.String)
-                {
-                    return Common.GetStringFieldMaxLength(scope.DbConnection, dbField.ContentId, dbField.Name);
-                }
-
-                return dbField.IsBlob ? Common.GetBlobFieldMaxSymbolLength(scope.DbConnection, dbField.ContentId, dbField.Name) : 0;
+                return Common.GetStringFieldMaxLength(scope.DbConnection, dbField.ContentId, dbField.Name);
             }
+
+            return dbField.IsBlob ? Common.GetBlobFieldMaxSymbolLength(scope.DbConnection, dbField.ContentId, dbField.Name) : 0;
         }
 
         bool IFieldRepository.IsNonEnumFieldValueExist(Field field)
@@ -120,10 +114,8 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 return null;
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetNumericFieldMaxValue(scope.DbConnection, dbField.ContentId, dbField.Name);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetNumericFieldMaxValue(scope.DbConnection, dbField.ContentId, dbField.Name);
         }
 
         bool IFieldRepository.LinqBackPropertyNameExists(Field field)
@@ -141,7 +133,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             // Существуют ли в связанном контенте такое поля, у которых имя прямого Linq-свойства равно имени обратного в данном поле
             var existFieldInRelatedContent = QPContext.EFContext.FieldSet.Any(f => f.NetName == field.LinqBackPropertyName && f.Id != field.Id && f.ContentId == field.RelateToContentId);
 
-            // Существуют ли поля ссылающиеся на тот же контент что и данное поле и с таким же именем обратного Linq-свойства
+            // Существуют ли поля ссылающиеся на тот же контент, что и данное поле и с таким же именем обратного Linq-свойства
             var relateContentFields = field.Relation.Content.Fields.Select(f => (decimal)f.Id).ToArray();
 
             // ReSharper disable once PossibleInvalidOperationException
@@ -165,7 +157,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 throw new ArgumentException("field");
             }
 
-            // Существуют ли в контенте данного поля, c таким же именем прямого Linq-свойства
+            // Существуют ли в контенте данного поля, с таким же именем прямого Linq-свойства
             var existFieldInContent = QPContext.EFContext.FieldSet.Any(f => f.NetName == field.LinqPropertyName && f.Id != field.Id && f.ContentId == field.ContentId);
 
             // Существуют ли поля ссылающиеся на контент данного поля и с именем обратного Linq-свойства равным имени прямого Linq-свойства данного поля
@@ -198,10 +190,8 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 throw new ApplicationException("Поле не имеет ожидаемой ссылки на контент.");
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.DoPluralLinksExist(scope.DbConnection, dbField.ContentId, dbField.LinkId.Value);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.DoPluralLinksExist(scope.DbConnection, dbField.ContentId, dbField.LinkId.Value);
         }
 
         bool IFieldRepository.LinkNetNameExists(ContentLink link)
@@ -215,66 +205,60 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         void IFieldRepository.RemoveLinkVersions(int fieldId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveLinkVersions(scope.DbConnection, fieldId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveLinkVersions(scope.DbConnection, fieldId);
         }
 
         void IFieldRepository.Delete(int id)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
-                        ChangeRemoveFieldTriggerState(scope.DbConnection, false);
-                        ChangeReorderFieldsTriggerState(scope.DbConnection, false);
-                        ChangeDeleteContentLinkTriggerState(scope.DbConnection, false);
-                    }
-
-                    var field = GetById(id);
-                    field.ReorderContentFields(true);
-                    var isVirtual = field.Content.IsVirtual;
-                    var useNative = field.Content.UseNativeEfTypes;
-                    FieldDAL dal = GetDal(field);
-
-                    DefaultRepository.Delete<FieldDAL>(id);
-
-                    if (!isVirtual)
-                    {
-                        Common.DropColumn(scope.DbConnection, dal, true, useNative);
-                        DropLinkWithCheck(scope.DbConnection, dal);
-                    }
+                    ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
+                    ChangeRemoveFieldTriggerState(scope.DbConnection, false);
+                    ChangeReorderFieldsTriggerState(scope.DbConnection, false);
+                    ChangeDeleteContentLinkTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                var field = GetById(id);
+                field.ReorderContentFields(true);
+                var isVirtual = field.Content.IsVirtual;
+                var useNative = field.Content.UseNativeEfTypes;
+                FieldDAL dal = GetDal(field);
+
+                DefaultRepository.Delete<FieldDAL>(id);
+
+                if (!isVirtual)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
-                        ChangeRemoveFieldTriggerState(scope.DbConnection, true);
-                        ChangeReorderFieldsTriggerState(scope.DbConnection, true);
-                        ChangeDeleteContentLinkTriggerState(scope.DbConnection, true);
-                    }
+                    Common.DropColumn(scope.DbConnection, dal, true, useNative);
+                    DropLinkWithCheck(scope.DbConnection, dal);
+                }
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
+                    ChangeRemoveFieldTriggerState(scope.DbConnection, true);
+                    ChangeReorderFieldsTriggerState(scope.DbConnection, true);
+                    ChangeDeleteContentLinkTriggerState(scope.DbConnection, true);
                 }
             }
         }
 
         internal static void DropLinkWithCheck(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var m2ms = QPContext.EFContext.FieldSet
-                    .Include(n => n.ContentToContent)
-                    .Where(n => n.ContentId == contentId && n.LinkId != null)
-                    .ToArray();
+            using var scope = new QPConnectionScope();
+            var m2Ms = QPContext.EFContext.FieldSet
+                .Include(n => n.ContentToContent)
+                .Where(n => n.ContentId == contentId && n.LinkId != null)
+                .ToArray();
 
-                foreach (var item in m2ms)
-                {
-                    DropLinkWithCheck(scope.DbConnection, item);
-                }
+            foreach (var item in m2Ms)
+            {
+                DropLinkWithCheck(scope.DbConnection, item);
             }
         }
 
@@ -301,63 +285,59 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         void IFieldRepository.ClearTreeOrder(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.ClearFieldTreeOrder(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.ClearFieldTreeOrder(scope.DbConnection, id);
         }
 
         Field IFieldRepository.CreateNew(Field item, bool explicitOrder)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeMaxOrderTriggerState(scope.DbConnection, false);
-                        ChangeInsertFieldTriggerState(scope.DbConnection, false);
-                        ChangeM2MDefaultTriggerState(scope.DbConnection, false);
-                    }
-
-                    if (explicitOrder)
-                    {
-                        item.ReorderContentFields();
-                    }
-                    else
-                    {
-                        var fieldsExists = QPContext.EFContext.FieldSet.Any(n => n.ContentId == item.ContentId);
-                        var maxOrder = fieldsExists ?
-                            (int)QPContext.EFContext.FieldSet.Where(n => n.ContentId == item.ContentId)
-                                .Select(n => n.Order).Max() : 0;
-                        item.Order = maxOrder + 1;
-                    }
-
-                    var constraint = item.Constraint;
-                    var dynamicImage = item.DynamicImage;
-                    var fieldValues = item.QpPluginFieldValues;
-
-                    DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Field, item);
-                    var newItem = DefaultRepository.Save<Field, FieldDAL>(item);
-                    var field = GetDal(newItem);
-                    Common.AddColumn(scope.DbConnection, field, true, item.Content.UseNativeEfTypes);
-
-                    DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Field);
-
-                    SaveConstraint(constraint, newItem);
-                    SaveDynamicImage(dynamicImage, newItem);
-                    UpdatePluginValues(fieldValues, newItem.Id);
-
-                    return GetById(newItem.Id);
+                    ChangeMaxOrderTriggerState(scope.DbConnection, false);
+                    ChangeInsertFieldTriggerState(scope.DbConnection, false);
+                    ChangeM2MDefaultTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                if (explicitOrder)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeMaxOrderTriggerState(scope.DbConnection, true);
-                        ChangeInsertFieldTriggerState(scope.DbConnection, true);
-                        ChangeM2MDefaultTriggerState(scope.DbConnection, true);
-                    }
+                    item.ReorderContentFields();
+                }
+                else
+                {
+                    var fieldsExists = QPContext.EFContext.FieldSet.Any(n => n.ContentId == item.ContentId);
+                    var maxOrder = fieldsExists ?
+                        (int)QPContext.EFContext.FieldSet.Where(n => n.ContentId == item.ContentId)
+                            .Select(n => n.Order).Max() : 0;
+                    item.Order = maxOrder + 1;
+                }
+
+                var constraint = item.Constraint;
+                var dynamicImage = item.DynamicImage;
+                var fieldValues = item.QpPluginFieldValues;
+
+                DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Field, item);
+                var newItem = DefaultRepository.Save<Field, FieldDAL>(item);
+                var field = GetDal(newItem);
+                Common.AddColumn(scope.DbConnection, field, true, item.Content.UseNativeEfTypes);
+
+                DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Field);
+
+                SaveConstraint(constraint, newItem);
+                SaveDynamicImage(dynamicImage, newItem);
+                UpdatePluginValues(fieldValues, newItem.Id);
+
+                return GetById(newItem.Id);
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    ChangeMaxOrderTriggerState(scope.DbConnection, true);
+                    ChangeInsertFieldTriggerState(scope.DbConnection, true);
+                    ChangeM2MDefaultTriggerState(scope.DbConnection, true);
                 }
             }
         }
@@ -375,7 +355,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         private static FieldDAL GetDal(Field newItem)
         {
-            var field = MapperFacade.FieldMapper.GetDalObject(newItem);
+            var field = QPContext.Map<FieldDAL>(newItem);
             field.Type = GetType(newItem.TypeId);
             field.ContentToContent = GetContentToContent(newItem.LinkId);
             return field;
@@ -383,74 +363,70 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         Field IFieldRepository.Update(Field item)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeMaxOrderTriggerState(scope.DbConnection, false);
-                        ChangeM2MDefaultTriggerState(scope.DbConnection, false);
-                        ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
-                        ChangeInsertFieldTriggerState(scope.DbConnection, false);
-                        ChangeUpdateFieldTriggerState(scope.DbConnection, false);
-                    }
-
-                    var preUpdateField = GetById(item.Id);
-                    var constraint = item.Constraint;
-                    var dynamicImage = item.DynamicImage;
-                    var fieldValues = item.QpPluginFieldValues;
-
-                    item.ReorderContentFields();
-
-                    UpdateBackwardFields(item, preUpdateField);
-
-                    var newItem = DefaultRepository.Update<Field, FieldDAL>(item);
-
-                    var oldDal = GetDal(preUpdateField);
-                    var newDal = GetDal(newItem);
-                    Common.UpdateColumn(scope.DbConnection, oldDal, newDal, item.Content.UseNativeEfTypes);
-
-                    UpdateRelationData(item, preUpdateField);
-
-                    if (oldDal.Order != item.Order)
-                    {
-                        RecreateNewViews(item.ContentId, item.Content.UseNativeEfTypes);
-                    }
-
-                    UpdateConstraint(constraint, newItem);
-
-                    UpdateDynamicImage(dynamicImage, newItem);
-
-                    UpdatePluginValues(fieldValues, newItem.Id);
-
-                    if (newDal.LinkId != oldDal.LinkId)
-                    {
-                        DropLinkWithCheck(scope.DbConnection, oldDal);
-                    }
-
-                    return GetById(newItem.Id);
+                    ChangeMaxOrderTriggerState(scope.DbConnection, false);
+                    ChangeM2MDefaultTriggerState(scope.DbConnection, false);
+                    ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
+                    ChangeInsertFieldTriggerState(scope.DbConnection, false);
+                    ChangeUpdateFieldTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                var preUpdateField = GetById(item.Id);
+                var constraint = item.Constraint;
+                var dynamicImage = item.DynamicImage;
+                var fieldValues = item.QpPluginFieldValues;
+
+                item.ReorderContentFields();
+
+                UpdateBackwardFields(item, preUpdateField);
+
+                var newItem = DefaultRepository.Update<Field, FieldDAL>(item);
+
+                var oldDal = GetDal(preUpdateField);
+                var newDal = GetDal(newItem);
+                Common.UpdateColumn(scope.DbConnection, oldDal, newDal, item.Content.UseNativeEfTypes);
+
+                UpdateRelationData(item, preUpdateField);
+
+                if (oldDal.Order != item.Order)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeMaxOrderTriggerState(scope.DbConnection, true);
-                        ChangeM2MDefaultTriggerState(scope.DbConnection, true);
-                        ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
-                        ChangeInsertFieldTriggerState(scope.DbConnection, true);
-                        ChangeUpdateFieldTriggerState(scope.DbConnection, true);
-                    }
+                    RecreateNewViews(item.ContentId, item.Content.UseNativeEfTypes);
+                }
+
+                UpdateConstraint(constraint, newItem);
+
+                UpdateDynamicImage(dynamicImage, newItem);
+
+                UpdatePluginValues(fieldValues, newItem.Id);
+
+                if (newDal.LinkId != oldDal.LinkId)
+                {
+                    DropLinkWithCheck(scope.DbConnection, oldDal);
+                }
+
+                return GetById(newItem.Id);
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    ChangeMaxOrderTriggerState(scope.DbConnection, true);
+                    ChangeM2MDefaultTriggerState(scope.DbConnection, true);
+                    ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
+                    ChangeInsertFieldTriggerState(scope.DbConnection, true);
+                    ChangeUpdateFieldTriggerState(scope.DbConnection, true);
                 }
             }
         }
 
         void IFieldRepository.SetFieldM2MDefValue(int fieldId, int[] defaultArticles)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.SetFieldM2MDefValue(scope.DbConnection, defaultArticles, fieldId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.SetFieldM2MDefValue(scope.DbConnection, defaultArticles, fieldId);
         }
 
         void IFieldRepository.CorrectEnumInContentData(Field field)
@@ -458,10 +434,8 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             if (!field.IsNew && field.ExactType == FieldExactTypes.StringEnum && field.StringEnumItems.Any())
             {
                 var enumValues = field.StringEnumItems.Select(v => v.Value).ToList();
-                using (var scope = new QPConnectionScope())
-                {
-                    Common.CorrectEnumInContentData(scope.DbConnection, field.Id, enumValues, field.StringDefaultValue);
-                }
+                using var scope = new QPConnectionScope();
+                Common.CorrectEnumInContentData(scope.DbConnection, field.Id, enumValues, field.StringDefaultValue);
             }
         }
 
@@ -477,15 +451,13 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         List<Field> IFieldRepository.GetDynamicImageFields(int contentId, int imageFieldId)
         {
-            return MapperFacade.FieldMapper.GetBizList(DefaultFieldQuery.Where(f => f.ContentId == contentId && f.BaseImageId == imageFieldId).ToList());
+            return QPContext.Map<List<Field>>(DefaultFieldQuery.Where(f => f.ContentId == contentId && f.BaseImageId == imageFieldId).ToList());
         }
 
         void IFieldRepository.UpdateContentFieldsOrders(int contentId, int currentOrder, int newOrder)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.UpdateContentFieldsOrder(scope.DbConnection, currentOrder, newOrder, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.UpdateContentFieldsOrder(scope.DbConnection, currentOrder, newOrder, contentId);
         }
 
         /// <summary>
@@ -493,9 +465,9 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         /// </summary>
         IEnumerable<Content> IFieldRepository.GetAggregatableContentsForClassifier(Field classifier)
         {
-            if (classifier != null && classifier.IsClassifier)
+            if (classifier is { IsClassifier: true })
             {
-                return MapperFacade.ContentMapper.GetBizList(QPContext.EFContext.FieldSet
+                return QPContext.Map<Content[]>(QPContext.EFContext.FieldSet
                     .Where(f => f.Id == classifier.Id)
                     .SelectMany(f => f.Aggregators)
                     .Select(f => f.Content)
@@ -503,7 +475,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 );
             }
 
-            return Enumerable.Empty<Content>();
+            return [];
         }
 
         bool IFieldRepository.FieldHasArticles(int contentId)
@@ -524,10 +496,8 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 throw new ApplicationException("Поле не имеет ожидаемой ссылки на контент.");
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.CheckNumericValuesAsO2MForeingKey(scope.DbConnection, field.ContentId, dbField.Name, field.RelateToContentId.Value);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.CheckNumericValuesAsO2MForeingKey(scope.DbConnection, field.ContentId, dbField.Name, field.RelateToContentId.Value);
         }
 
         bool IFieldRepository.NameExists(Field field)
@@ -537,18 +507,18 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         public static Field GetById(int fieldId)
         {
-            return GetByIdFromCache(fieldId) ?? MapperFacade.FieldMapper.GetBizObject(DefaultFieldQuery.SingleOrDefault(f => f.Id == fieldId));
+            return GetByIdFromCache(fieldId) ?? QPContext.Map<Field>(DefaultFieldQuery.SingleOrDefault(f => f.Id == fieldId));
         }
 
         public static Field GetByName(int contentId, string fieldName)
         {
-            return MapperFacade.FieldMapper.GetBizObject(DefaultFieldQuery.SingleOrDefault(f => f.ContentId == contentId && f.Name == fieldName));
+            return QPContext.Map<Field>(DefaultFieldQuery.SingleOrDefault(f => f.ContentId == contentId && f.Name == fieldName));
         }
 
         public static IEnumerable<Field> GetList(IEnumerable<int> ids)
         {
             var decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-            return MapperFacade.FieldMapper.GetBizList(DefaultFieldQuery.Where(f => decIDs.Contains(f.Id)).ToList());
+            return QPContext.Map<Field[]>(DefaultFieldQuery.Where(f => decIDs.Contains(f.Id)).ToList());
         }
 
         private static void ApplyContentToFields(IEnumerable<Field> fields, int contentId)
@@ -574,7 +544,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 lambda = n => n.ViewInList;
             }
 
-            var list =  MapperFacade.FieldMapper.GetBizList(
+            var list = QPContext.Map<List<Field>>(
                 DefaultLightFieldQuery.Where(n => n.ContentId == contentId).Where(lambda).OrderBy(n => n.Order).ToList()
             );
             ApplyContentToFields(list, contentId);
@@ -583,19 +553,17 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         internal static ListResult<FieldListItem> GetList(ListCommand cmd, int contentId)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var options = new FieldPageOptions
             {
-                var options = new FieldPageOptions
-                {
-                    ContentId = contentId,
-                    SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? MapperFacade.FieldListItemRowMapper.TranslateSortExpression(cmd.SortExpression) : null,
-                    StartRecord = cmd.StartRecord,
-                    PageSize = cmd.PageSize
-                };
+                ContentId = contentId,
+                SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? TranslateSortExpression(cmd.SortExpression) : null,
+                StartRecord = cmd.StartRecord,
+                PageSize = cmd.PageSize
+            };
 
-                var rows = Common.GetFieldsPage(scope.DbConnection, options, out var totalRecords);
-                return new ListResult<FieldListItem> { Data = MapperFacade.FieldListItemRowMapper.GetBizList(rows.ToList()), TotalRecords = totalRecords };
-            }
+            var rows = Common.GetFieldsPage(scope.DbConnection, options, out var totalRecords);
+            return new ListResult<FieldListItem> { Data = QPContext.Map<List<FieldListItem>>(rows.ToList()), TotalRecords = totalRecords };
         }
 
         private static List<Field> GetListFromCache(int contentId)
@@ -603,10 +571,9 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             IList<Field> result = null;
             var cache = QPContext.GetFieldCache();
             var cache2 = QPContext.GetContentFieldCache();
-            if (cache != null && cache2 != null && cache2.ContainsKey(contentId))
+            if (cache != null && cache2 != null && cache2.TryGetValue(contentId, out var fieldIds))
             {
-                var fieldIds = cache2[contentId];
-                var tempFieldIds = fieldIds.Select(n => cache.ContainsKey(n) ? cache[n] : null).ToList();
+                var tempFieldIds = fieldIds.Select(n => cache.GetValueOrDefault(n)).ToList();
                 if (tempFieldIds.All(n => n != null))
                 {
                     result = tempFieldIds;
@@ -616,28 +583,32 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             return result?.ToList();
         }
 
+        private static string TranslateSortExpression(string sortExpression)
+        {
+            var replaces = new Dictionary<string, string> { { "TypeName", "TypeCode" } };
+            return TranslateHelper.TranslateSortExpression(sortExpression, replaces);
+        }
+
         internal static ListResult<FieldListItem> GetListForSelect(ListCommand cmd, int contentId, int[] ids, FieldSelectMode mode)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var options = new FieldPageOptions
             {
-                var options = new FieldPageOptions
-                {
-                    ContentId = contentId,
-                    SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? MapperFacade.FieldListItemRowMapper.TranslateSortExpression(cmd.SortExpression) : null,
-                    StartRecord = cmd.StartRecord,
-                    PageSize = cmd.PageSize,
-                    SelectedIDs = ids,
-                    Mode = mode
-                };
+                ContentId = contentId,
+                SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? TranslateSortExpression(cmd.SortExpression) : null,
+                StartRecord = cmd.StartRecord,
+                PageSize = cmd.PageSize,
+                SelectedIDs = ids,
+                Mode = mode
+            };
 
-                var rows = Common.GetFieldsPage(scope.DbConnection, options, out var totalRecords);
-                return new ListResult<FieldListItem> { Data = MapperFacade.FieldListItemRowMapper.GetBizList(rows.ToList()), TotalRecords = totalRecords };
-            }
+            var rows = Common.GetFieldsPage(scope.DbConnection, options, out var totalRecords);
+            return new ListResult<FieldListItem> { Data = QPContext.Map<List<FieldListItem>>(rows.ToList()), TotalRecords = totalRecords };
         }
 
         internal static IEnumerable<Field> GetAll()
         {
-            return MapperFacade.FieldMapper.GetBizList(DefaultFieldQuery.OrderBy(n => n.Order).ThenBy(n => n.Id).ToList());
+            return QPContext.Map<Field[]>(DefaultFieldQuery.OrderBy(n => n.Order).ThenBy(n => n.Id).ToList());
         }
 
         internal static Field GetTitleField(int contentId)
@@ -646,7 +617,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             var field = GetByName(contentId, fieldName);
             if (field == null || !field.ViewInList)
             {
-                field = MapperFacade.FieldMapper.GetBizObject(DefaultFieldQuery.Where(n => n.ContentId == contentId && n.ViewInList).OrderBy(n => n.Order).FirstOrDefault());
+                field = QPContext.Map<Field>(DefaultFieldQuery.Where(n => n.ContentId == contentId && n.ViewInList).OrderBy(n => n.Order).FirstOrDefault());
             }
 
             return field;
@@ -657,51 +628,47 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         internal static DynamicImage GetDynamicImageInfoById(int fieldId)
         {
             var info = DefaultRepository.GetById<DynamicImageFieldDAL>(fieldId);
-            return info == null ? null : MapperFacade.DynamicImageMapper.GetBizObject(info);
+            return info == null ? null : QPContext.Map<DynamicImage>(info);
         }
 
-        internal static IEnumerable<FieldType> GetAllFieldTypes() => MapperFacade.FieldTypeMapper.GetBizList(QPContext.EFContext.FieldTypeSet.ToList());
+        internal static IEnumerable<FieldType> GetAllFieldTypes() => QPContext.Map<FieldType[]>(QPContext.EFContext.FieldTypeSet.ToList());
 
         internal static IEnumerable<ListItem> GetBaseFieldsForM2O(int contentId, int fieldId)
         {
             var siteId = ContentRepository.GetById(contentId).SiteId;
             var result = new List<ListItem>();
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            foreach (DataRow row in Common.GetBaseFieldsForM2O(scope.DbConnection, contentId, fieldId).Rows)
             {
-                foreach (DataRow row in Common.GetBaseFieldsForM2O(scope.DbConnection, contentId, fieldId).Rows)
+                var parts = new List<string>();
+                if (siteId != Convert.ToInt32(row["site_id"]))
                 {
-                    var parts = new List<string>();
-                    if (siteId != Convert.ToInt32(row["site_id"]))
-                    {
-                        parts.Add((string)row["site_name"]);
-                    }
-
-                    if (contentId != Convert.ToInt32(row["content_id"]))
-                    {
-                        parts.Add((string)row["content_name"]);
-                    }
-
-                    parts.Add((string)row["attribute_name"]);
-                    var currentFieldId = Convert.ToInt32(row["attribute_id"]);
-                    var resultPart = new ListItem { Text = string.Join(".", parts), Value = currentFieldId.ToString() };
-                    if (currentFieldId == fieldId)
-                    {
-                        resultPart.Selected = true;
-                    }
-
-                    result.Add(resultPart);
+                    parts.Add((string)row["site_name"]);
                 }
+
+                if (contentId != Convert.ToInt32(row["content_id"]))
+                {
+                    parts.Add((string)row["content_name"]);
+                }
+
+                parts.Add((string)row["attribute_name"]);
+                var currentFieldId = Convert.ToInt32(row["attribute_id"]);
+                var resultPart = new ListItem { Text = string.Join(".", parts), Value = currentFieldId.ToString() };
+                if (currentFieldId == fieldId)
+                {
+                    resultPart.Selected = true;
+                }
+
+                result.Add(resultPart);
             }
 
             return result;
         }
 
-        public static void RecreateNewViews(int contentId, bool useNative)
+        private static void RecreateNewViews(int contentId, bool useNative)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RecreateNewViews(scope.DbConnection, contentId, useNative);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RecreateNewViews(scope.DbConnection, contentId, useNative);
         }
 
         private static void SaveDynamicImage(DynamicImage dynamicImage, Field newItem)
@@ -709,9 +676,9 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             if (dynamicImage != null)
             {
                 dynamicImage.Id = newItem.Id;
-                var dynamicImageDal = MapperFacade.DynamicImageMapper.GetDalObject(dynamicImage);
+                var dynamicImageDal = QPContext.Map<DynamicImageFieldDAL>(dynamicImage);
                 dynamicImageDal = DefaultRepository.SimpleSave(dynamicImageDal);
-                newItem.DynamicImage = MapperFacade.DynamicImageMapper.GetBizObject(dynamicImageDal);
+                newItem.DynamicImage = QPContext.Map<DynamicImage>(dynamicImageDal);
             }
         }
 
@@ -719,7 +686,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         {
             if (constraint != null)
             {
-                BindFieldToContstraint(newItem, constraint);
+                BindFieldToConstraint(newItem, constraint);
                 ContentConstraintRepository.Save(constraint);
             }
         }
@@ -729,61 +696,60 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         /// </summary>
         private static void UpdateRelationData(Field newItem, Field preUpdateField)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                // M2M -> M2O или новое базовое поле для M2O
-                if ((preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.M2ORelation ||
+            using var scope = new QPConnectionScope();
+
+            // M2M -> M2O или новое базовое поле для M2O
+            if ((preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.M2ORelation ||
                     preUpdateField.ExactType == FieldExactTypes.M2ORelation && newItem.ExactType == FieldExactTypes.M2ORelation &&
                     preUpdateField.BackRelationId != newItem.BackRelationId) && newItem.BackRelationId.HasValue)
-                {
-                    Common.ChangeContentDataForRelation(scope.DbConnection, newItem.Id, newItem.BackRelationId.Value);
-                }
+            {
+                Common.ChangeContentDataForRelation(scope.DbConnection, newItem.Id, newItem.BackRelationId.Value);
+            }
 
-                // M2O -> M2M или новый связанный контент для M2M
-                if ((preUpdateField.ExactType == FieldExactTypes.M2ORelation && newItem.ExactType == FieldExactTypes.M2MRelation ||
+            // M2O -> M2M или новый связанный контент для M2M
+            if ((preUpdateField.ExactType == FieldExactTypes.M2ORelation && newItem.ExactType == FieldExactTypes.M2MRelation ||
                     preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.M2MRelation
                     && preUpdateField.LinkId != newItem.LinkId) && newItem.LinkId.HasValue)
-                {
-                    Common.ChangeContentDataForRelation(scope.DbConnection, newItem.Id, newItem.LinkId.Value);
-                }
+            {
+                Common.ChangeContentDataForRelation(scope.DbConnection, newItem.Id, newItem.LinkId.Value);
+            }
 
-                // O2M -> M2M
-                if ((preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.M2MRelation) &&
-                    newItem.LinkId.HasValue)
+            // O2M -> M2M
+            if ((preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.M2MRelation) &&
+                newItem.LinkId.HasValue)
+            {
+                Common.O2MtoM2MTranferData(scope.DbConnection, newItem.Id, newItem.LinkId.Value);
+                if (preUpdateField.BackRelationId.HasValue)
                 {
-                    Common.O2MtoM2MTranferData(scope.DbConnection, newItem.Id, newItem.LinkId.Value);
-                    if (preUpdateField.BackRelationId.HasValue)
-                    {
-                        Common.ChangeContentDataForRelation(scope.DbConnection, preUpdateField.BackRelationId.Value, newItem.LinkId.Value);
-                    }
+                    Common.ChangeContentDataForRelation(scope.DbConnection, preUpdateField.BackRelationId.Value, newItem.LinkId.Value);
                 }
+            }
 
-                // M2M -> O2M
-                else if ((preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation) &&
-                    preUpdateField.LinkId.HasValue)
+            // M2M -> O2M
+            else if ((preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation) &&
+                     preUpdateField.LinkId.HasValue)
+            {
+                Common.M2MtoO2MTranferData(scope.DbConnection, newItem.Id, preUpdateField.LinkId.Value);
+                if (preUpdateField.BackRelationId.HasValue)
                 {
-                    Common.M2MtoO2MTranferData(scope.DbConnection, newItem.Id, preUpdateField.LinkId.Value);
-                    if (preUpdateField.BackRelationId.HasValue)
-                    {
-                        Common.ChangeContentDataForRelation(scope.DbConnection, preUpdateField.BackRelationId.Value, newItem.Id);
-                    }
+                    Common.ChangeContentDataForRelation(scope.DbConnection, preUpdateField.BackRelationId.Value, newItem.Id);
                 }
+            }
 
-                if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType != FieldExactTypes.O2MRelation)
-                {
-                    Common.ClearO2MData(scope.DbConnection, newItem.Id);
-                }
-                else if (preUpdateField.ExactType != FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation)
-                {
-                    Common.FillO2MData(scope.DbConnection, newItem.Id);
-                }
+            if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType != FieldExactTypes.O2MRelation)
+            {
+                Common.ClearO2MData(scope.DbConnection, newItem.Id);
+            }
+            else if (preUpdateField.ExactType != FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation)
+            {
+                Common.FillO2MData(scope.DbConnection, newItem.Id);
             }
         }
 
         private void UpdateBackwardFields(Field newItem, Field preUpdateField)
         {
             // если тип поменялся с O2M на что-то другое (не M2M), либо поменялся связанный контент
-            if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && preUpdateField.O2MBackwardField != null && !preUpdateField.O2MBackwardField.IsNew)
+            if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && preUpdateField.O2MBackwardField is { IsNew: false })
             {
                 if (newItem.ExactType != FieldExactTypes.O2MRelation && newItem.ExactType != FieldExactTypes.M2MRelation ||
                     newItem.ExactType == FieldExactTypes.O2MRelation && preUpdateField.RelateToContentId != newItem.RelateToContentId)
@@ -793,7 +759,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             }
 
             // если тип поменялся с O2M на M2M
-            if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.M2MRelation && preUpdateField.O2MBackwardField != null && !preUpdateField.O2MBackwardField.IsNew)
+            if (preUpdateField.ExactType == FieldExactTypes.O2MRelation && newItem.ExactType == FieldExactTypes.M2MRelation && preUpdateField.O2MBackwardField is { IsNew: false })
             {
                 var f = preUpdateField.O2MBackwardField;
                 f.ExactType = FieldExactTypes.M2MRelation;
@@ -804,7 +770,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             }
 
             // если тип поменялся с M2M на O2M
-            if (preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation && preUpdateField.M2MBackwardField != null && !preUpdateField.M2MBackwardField.IsNew)
+            if (preUpdateField.ExactType == FieldExactTypes.M2MRelation && newItem.ExactType == FieldExactTypes.O2MRelation && preUpdateField.M2MBackwardField is { IsNew: false })
             {
                 var f = preUpdateField.M2MBackwardField;
                 f.ExactType = FieldExactTypes.M2ORelation;
@@ -815,22 +781,22 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             }
         }
 
-        private static void UpdateDynamicImage(DynamicImage dymamicImage, Field newItem)
+        private static void UpdateDynamicImage(DynamicImage dynamicImage, Field newItem)
         {
-            if (dymamicImage != null)
+            if (dynamicImage != null)
             {
-                var dymamicImageDal = MapperFacade.DynamicImageMapper.GetDalObject(dymamicImage);
-                if (dymamicImage.IsNew)
+                var dynamicImageDal = QPContext.Map<DynamicImageFieldDAL>(dynamicImage);
+                if (dynamicImage.IsNew)
                 {
-                    dymamicImage.Id = newItem.Id;
-                    dymamicImageDal = DefaultRepository.SimpleSave(dymamicImageDal);
+                    dynamicImage.Id = newItem.Id;
+                    dynamicImageDal = DefaultRepository.SimpleSave(dynamicImageDal);
                 }
                 else
                 {
-                    dymamicImageDal = DefaultRepository.SimpleUpdate(dymamicImageDal);
+                    dynamicImageDal = DefaultRepository.SimpleUpdate(dynamicImageDal);
                 }
 
-                newItem.DynamicImage = MapperFacade.DynamicImageMapper.GetBizObject(dymamicImageDal);
+                newItem.DynamicImage = QPContext.Map<DynamicImage>(dynamicImageDal);
             }
             else
             {
@@ -847,7 +813,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         {
             if (constraint != null)
             {
-                BindFieldToContstraint(newItem, constraint);
+                BindFieldToConstraint(newItem, constraint);
                 if (constraint.IsNew)
                 {
                     ContentConstraintRepository.Save(constraint);
@@ -879,7 +845,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             return QPContext.EFContext.ContentSet.Any(n => n.NetPluralName == link.NetPluralLinkName && n.SiteId == link.Content.SiteId);
         }
 
-        private static void BindFieldToContstraint(Field item, ContentConstraint constraint)
+        private static void BindFieldToConstraint(Field item, ContentConstraint constraint)
         {
             constraint.ContentId = item.ContentId;
             foreach (var r in constraint.Rules)
@@ -891,17 +857,17 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             }
         }
 
-        internal static void ChangeMaxOrderTriggerState(DbConnection cnn, bool enable)
+        private static void ChangeMaxOrderTriggerState(DbConnection cnn, bool enable)
         {
             Common.ChangeTriggerState(cnn, "ti_set_max_order", enable);
         }
 
-        internal static void ChangeInsertFieldTriggerState(DbConnection cnn, bool enable)
+        private static void ChangeInsertFieldTriggerState(DbConnection cnn, bool enable)
         {
             Common.ChangeTriggerState(cnn, "ti_insert_field", enable);
         }
 
-        internal static void ChangeUpdateFieldTriggerState(DbConnection cnn, bool enable)
+        private static void ChangeUpdateFieldTriggerState(DbConnection cnn, bool enable)
         {
             Common.ChangeTriggerState(cnn, "tu_update_field", enable);
         }
@@ -922,7 +888,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             Common.ChangeTriggerState(cnn, "td_content_attribute_clean_empty_links", enable);
         }
 
-        internal static void ChangeM2MDefaultTriggerState(DbConnection cnn, bool enable)
+        private static void ChangeM2MDefaultTriggerState(DbConnection cnn, bool enable)
         {
             Common.ChangeTriggerState(cnn, "tu_content_attribute_m2m_default_value", enable);
             Common.ChangeTriggerState(cnn, "ti_content_attribute_m2m_default_value", enable);
@@ -938,14 +904,13 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
             Common.ChangeTriggerState(cnn, "td_content_to_content", enable);
         }
 
-
-        public class ContentListItem
+        private class ContentListItem
         {
-            public int Id { get; set; }
+            public int Id { get; init; }
 
-            public string Name { get; set; }
+            public string Name { get; init; }
 
-            public decimal SiteId { get; set; }
+            public decimal SiteId { get; init; }
         }
 
         /// <summary>
@@ -953,22 +918,22 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         /// </summary>
         internal static IEnumerable<ListItem> GetAggregatableContentListItemsForClassifier(Field classifier, string excludeValue = null, int permissionLevel = PermissionLevel.Modify)
         {
-            if (classifier != null && classifier.IsClassifier)
+            if (classifier is { IsClassifier: true })
             {
                 return AggregatedContentListItems(classifier, excludeValue, permissionLevel).Select(c => new ListItem(c.Id.ToString(), c.Name)).ToArray();
             }
 
-            return Enumerable.Empty<ListItem>();
+            return [];
         }
 
         internal static int[] GetAggregatableContentIdsForClassifier(Field classifier)
         {
-            if (classifier != null && classifier.IsClassifier)
+            if (classifier is { IsClassifier: true })
             {
                 return AggregatedContentListItems(classifier, null, PermissionLevel.List).Select(c => c.Id).ToArray();
             }
 
-            return new int[] { };
+            return [];
         }
 
         private static IEnumerable<ContentListItem> AggregatedContentListItems(Field classifier, string excludeValue, int permissionLevel)
@@ -986,11 +951,9 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                 var ids = items.Select(n => n.Id).ToArray();
                 var siteId = items.Select(n => (int)n.SiteId).First();
                 var excludeId = Converter.ToInt32(excludeValue, 0);
-                using (var scope = new QPConnectionScope())
-                {
-                    var result = CommonSecurity.CheckContentSecurity(scope.DbConnection, siteId, ids, QPContext.CurrentUserId, permissionLevel);
-                    items = items.Where(n => result[n.Id] || n.Id == excludeId).ToArray();
-                }
+                using var scope = new QPConnectionScope();
+                var result = CommonSecurity.CheckContentSecurity(scope.DbConnection, siteId, ids, QPContext.CurrentUserId, permissionLevel);
+                items = items.Where(n => result[n.Id] || n.Id == excludeId).ToArray();
             }
 
             return items;
@@ -1023,27 +986,21 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         internal static void MoveFieldOrders(int contentId, int newOrder)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.MoveFieldOrders(scope.DbConnection, contentId, newOrder);
-            }
+            using var scope = new QPConnectionScope();
+            Common.MoveFieldOrders(scope.DbConnection, contentId, newOrder);
         }
 
         internal static IEnumerable<DataRow> GetRelationsBetweenAttributes(int sourceSiteId, int destinationSiteId, string contentIds, bool? forVirtualContents, bool byNewContents)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetRelationsBetweenAttributes(scope.DbConnection, sourceSiteId, destinationSiteId, contentIds, forVirtualContents, byNewContents);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetRelationsBetweenAttributes(scope.DbConnection, sourceSiteId, destinationSiteId, contentIds, forVirtualContents, byNewContents);
         }
 
         internal static string GetRelationsBetweenAttributesXml(int sourceSiteId, int destinationSiteId, string contentIds, bool? forVirtualContents, bool byNewContents)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetRelationsBetweenAttributes(scope.DbConnection, sourceSiteId, destinationSiteId, contentIds, forVirtualContents, byNewContents);
-                return MultistepActionHelper.GetXmlFromDataRows(rows, "attribute");
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetRelationsBetweenAttributes(scope.DbConnection, sourceSiteId, destinationSiteId, contentIds, forVirtualContents, byNewContents);
+            return MultistepActionHelper.GetXmlFromDataRows(rows, "attribute");
         }
 
         internal static void CopyCommandFieldBind(string relationsBetweenAttributes)
@@ -1072,18 +1029,14 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
 
         internal static void CopyDynamicImageAttributes(string relationsBetweenAttributesXml)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyDynamicImageAttributes(scope.DbConnection, relationsBetweenAttributesXml);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyDynamicImageAttributes(scope.DbConnection, relationsBetweenAttributesXml);
         }
 
         internal static void UpdateAttributesOrder(int destinationSiteId, string relationsBetweenAttributesXml, string newContents)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.UpdateAttributesOrder(scope.DbConnection, destinationSiteId, relationsBetweenAttributesXml, newContents);
-            }
+            using var scope = new QPConnectionScope();
+            Common.UpdateAttributesOrder(scope.DbConnection, destinationSiteId, relationsBetweenAttributesXml, newContents);
         }
 
         internal static void UpdateAttributes(int sourceSiteId, int destinationSiteId, string relationsBetweenAttributesXml, string contentIds)
@@ -1106,9 +1059,9 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
         {
             Field result = null;
             var cache = QPContext.GetFieldCache();
-            if (cache != null && cache.ContainsKey(fieldId))
+            if (cache != null && cache.TryGetValue(fieldId, out var value))
             {
-                result = cache[fieldId];
+                result = value;
             }
 
             return result;
@@ -1148,7 +1101,7 @@ namespace Quantumart.QP8.BLL.Repository.FieldRepositories
                     ContentAttributeId = fieldId,
                     Value = string.IsNullOrEmpty(fieldValue.Value) ? null : fieldValue.Value,
                     PluginFieldId = fieldValue.Field.Id,
-                    Id = actualFieldIds.TryGetValue(fieldValue.Field.Id, out var result) ? result : 0
+                    Id = actualFieldIds.GetValueOrDefault(fieldValue.Field.Id, 0)
                 };
                 entities.Entry(dalValue).State = dalValue.Id == 0 ? EntityState.Added : EntityState.Modified;
             }

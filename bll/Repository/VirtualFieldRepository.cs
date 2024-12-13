@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
 using Quantumart.QP8.BLL.Repository.Results;
 using Quantumart.QP8.Constants;
@@ -11,7 +10,7 @@ using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class VirtualFieldRepository
+    internal static class VirtualFieldRepository
     {
         internal static Field Save(Field item)
         {
@@ -36,10 +35,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static void RemoveUnionAttrs(Content unionContent)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveUnionAttrsByUnionContent(scope.DbConnection, unionContent.Id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveUnionAttrsByUnionContent(scope.DbConnection, unionContent.Id);
         }
 
         /// <summary>
@@ -47,10 +44,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static void RemoveUnionAttrs(List<int> baseFieldIds)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveUnionAttrsByBaseFields(scope.DbConnection, baseFieldIds);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveUnionAttrsByBaseFields(scope.DbConnection, baseFieldIds);
         }
 
         internal static void RebuildUnionAttrs(Content unionContent)
@@ -69,11 +64,9 @@ namespace Quantumart.QP8.BLL.Repository
                 };
 
             // сохранить новые привязки
-            IEnumerable<UnionAttrDAL> records = MapperFacade.UnionAttrMapper.GetDalList(newUnionAttr.ToList());
-            using (var scope = new QPConnectionScope())
-            {
-                Common.BatchInsertUnionAttrs(scope.DbConnection, records);
-            }
+            var records = QPContext.Map<UnionAttrDAL[]>(newUnionAttr.ToList());
+            using var scope = new QPConnectionScope();
+            Common.BatchInsertUnionAttrs(scope.DbConnection, records);
         }
 
         private class VirtualFieldRelationStorageItem
@@ -96,37 +89,28 @@ namespace Quantumart.QP8.BLL.Repository
 
             public VirtualFieldRelationsStorage(int rootContentId)
             {
-                if (_storage == null)
-                {
-                    _storage = new Dictionary<int, VirtualFieldRelationStorageItem>();
-                }
-
-                if (_contentIds == null)
-                {
-                    _contentIds = new Queue<int>();
-                }
+                _storage ??= new Dictionary<int, VirtualFieldRelationStorageItem>();
+                _contentIds ??= new Queue<int>();
 
                 _contentIds.Enqueue(rootContentId);
-                if (!_storage.ContainsKey(rootContentId))
+                if (!_storage.TryGetValue(rootContentId, out var value))
                 {
                     var item = new VirtualFieldRelationStorageItem { ScopeCount = 1 };
                     _storage.Add(rootContentId, item);
-                    using (var scope = new QPConnectionScope())
-                    {
-                        var dt = Common.LoadVirtualFieldsRelations(scope.DbConnection, rootContentId);
-                        item.Data = MapperFacade.VirtualFieldsRelationMapper.GetBizList(dt.AsEnumerable().ToList()).Distinct().ToArray();
-                    }
+                    using var scope = new QPConnectionScope();
+                    var dt = Common.LoadVirtualFieldsRelations(scope.DbConnection, rootContentId);
+                    item.Data = QPContext.Map<VirtualFieldsRelation[]>(dt.AsEnumerable().ToList()).Distinct().ToArray();
                 }
                 else
                 {
-                    _storage[rootContentId].ScopeCount++;
+                    value.ScopeCount++;
                 }
             }
 
             public void Dispose()
             {
                 var rootContentId = _contentIds.Dequeue();
-                if (!_contentIds.Any())
+                if (_contentIds.Count == 0)
                 {
                     _contentIds = null;
                 }
@@ -155,7 +139,7 @@ namespace Quantumart.QP8.BLL.Repository
                 get
                 {
                     var currentRootContentId = _contentIds.Peek();
-                    return _storage != null && _storage.ContainsKey(currentRootContentId) ? _storage[currentRootContentId].Data : null;
+                    return _storage != null && _storage.TryGetValue(currentRootContentId, out var value) ? value.Data : null;
                 }
             }
         }
@@ -174,16 +158,14 @@ namespace Quantumart.QP8.BLL.Repository
 
             if (!rootFieldId.Any())
             {
-                return Enumerable.Empty<VirtualFieldsRelation>();
+                return [];
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                var dt = Common.GetVirtualSubFields(scope.DbConnection, rootFieldId);
-                var result = MapperFacade.VirtualFieldsRelationMapper.GetBizList(dt.AsEnumerable().ToList());
-                result.AddRange(VirtualFieldRelationsStorage.Data);
-                return result.Where(r => rootFieldId.Contains(r.BaseFieldId)).Distinct().ToArray();
-            }
+            using var scope = new QPConnectionScope();
+            var dt = Common.GetVirtualSubFields(scope.DbConnection, rootFieldId);
+            var result = QPContext.Map<List<VirtualFieldsRelation>>(dt.AsEnumerable().ToList());
+            result.AddRange(VirtualFieldRelationsStorage.Data);
+            return result.Where(r => rootFieldId.Contains(r.BaseFieldId)).Distinct().ToArray();
         }
 
         public static IEnumerable<VirtualFieldsRelation> GetVirtualBaseFieldIDs(List<int> subFieldIds)
@@ -192,7 +174,7 @@ namespace Quantumart.QP8.BLL.Repository
             using (var scope = new QPConnectionScope())
             {
                 var dt = Common.GetVirtualBaseFieldIDs(scope.DbConnection, subFieldIds);
-                result.AddRange(MapperFacade.VirtualFieldsRelationMapper.GetBizList(dt.AsEnumerable().ToList()));
+                result.AddRange(QPContext.Map<List<VirtualFieldsRelation>>(dt.AsEnumerable().ToList()));
             }
 
             return result.Distinct().ToArray();
@@ -205,14 +187,12 @@ namespace Quantumart.QP8.BLL.Repository
         {
             if (!unionFieldIds.Any())
             {
-                return Enumerable.Empty<UnionFieldRelationCount>();
+                return [];
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                var dt = Common.GetUnionFieldRelationCount(scope.DbConnection, unionFieldIds);
-                return MapperFacade.UnionFieldRelationCountMapper.GetBizList(dt.AsEnumerable().ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var dt = Common.GetUnionFieldRelationCount(scope.DbConnection, unionFieldIds);
+            return QPContext.Map<List<UnionFieldRelationCount>>(dt.AsEnumerable().ToList());
         }
 
         /// <summary>
@@ -245,19 +225,15 @@ namespace Quantumart.QP8.BLL.Repository
                     BaseFieldId = usedContentDict[c.ContentId.Value][c.ColumnName]
                 });
 
-            var records = MapperFacade.UserQueryAttrMapper.GetDalList(userQueryAttr.ToList()).AsEnumerable();
-            using (var scope = new QPConnectionScope())
-            {
-                Common.BatchInsertUserQueryAttrs(scope.DbConnection, records);
-            }
+            var records = QPContext.Map<UserQueryAttrsDAL[]>(userQueryAttr.ToList());
+            using var scope = new QPConnectionScope();
+            Common.BatchInsertUserQueryAttrs(scope.DbConnection, records);
         }
 
         internal static void RemoveUserQueryAttrs(Content dbContent)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveUserQueryAttrs(scope.DbConnection, dbContent.Id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveUserQueryAttrs(scope.DbConnection, dbContent.Id);
         }
 
         /// <summary>
@@ -265,10 +241,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<int> GetRealBaseFieldIds(int virtualFieldId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetRealBaseFieldIds(scope.DbConnection, virtualFieldId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetRealBaseFieldIds(scope.DbConnection, virtualFieldId);
         }
     }
 }

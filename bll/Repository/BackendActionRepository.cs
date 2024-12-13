@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using QP8.Infrastructure.Extensions;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository.Helpers;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
@@ -57,29 +56,27 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<BackendActionStatus> GetStatusesList(string actionCode, int entityId)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var userId = QPContext.CurrentUserId;
+            var action = BackendActionCache.Actions.FirstOrDefault(x => x.Code == actionCode);
+            if (action == null)
             {
-                var userId = QPContext.CurrentUserId;
-                var action = BackendActionCache.Actions.FirstOrDefault(x => x.Code == actionCode);
-                if (action == null)
-                {
-                    var ex = new ApplicationException(string.Format(CustomActionStrings.ActionNotFoundByCode, actionCode));
-                    ex.Data.Add(ExceptionHelpers.ClientMessageKey, string.Format(CustomActionStrings.ActionNotFound));
-                    throw ex;
-                }
-
-                var actionId = action.Id;
-                var entityCode = EntityTypeRepository.GetById(action.EntityTypeId)?.Code;
-                var statusesList = MapperFacade.BackendActionStatusMapper.GetBizList(
-                    CommonSecurity.GetActionStatusList(
-                        QPContext.EFContext,
-                        scope.DbConnection,
-                        userId, actionCode, actionId, entityId, entityCode,
-                        QPContext.IsAdmin
-                    ).ToList()
-                );
-                return statusesList;
+                var ex = new ApplicationException(string.Format(CustomActionStrings.ActionNotFoundByCode, actionCode));
+                ex.Data.Add(ExceptionHelpers.ClientMessageKey, string.Format(CustomActionStrings.ActionNotFound));
+                throw ex;
             }
+
+            var actionId = action.Id;
+            var entityCode = EntityTypeRepository.GetById(action.EntityTypeId)?.Code;
+            var statusesList = QPContext.Map<BackendActionStatus[]>(
+                CommonSecurity.GetActionStatusList(
+                    QPContext.EFContext,
+                    scope.DbConnection,
+                    userId, actionCode, actionId, entityId, entityCode,
+                    QPContext.IsAdmin
+                ).ToList()
+            );
+            return statusesList;
         }
 
         internal static IEnumerable<BackendAction> GetInterfaceActionsForCustom()

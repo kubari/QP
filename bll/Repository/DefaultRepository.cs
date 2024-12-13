@@ -1,43 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Mappers;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
-using EF = Quantumart.QP8.Constants.EF;
 using EntityState = Microsoft.EntityFrameworkCore.EntityState;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    public interface ISavable
+    internal static class DefaultRepository
     {
-        decimal Id { get; set; }
-
-        DateTime Created { get; set; }
-
-        DateTime Modified { get; set; }
-    }
-
-    internal class DefaultRepository
-    {
-        internal static string GetSetNameByType(Type type, bool quailfied = false)
-        {
-            var result = type.Name.Replace(EF.EntitySuffix, EF.SetSuffix);
-            if (quailfied)
-            {
-                result = EF.ContainerName + "." + result;
-            }
-
-            return result;
-        }
-
         internal static TBiz Save<TBiz, TDal>(TBiz item)
             where TDal : class, IQpEntityObject
             where TBiz : EntityObject => SaveAsUser<TBiz, TDal>(item, QPContext.CurrentUserId);
@@ -46,12 +19,12 @@ namespace Quantumart.QP8.BLL.Repository
             where TDal : class, IQpEntityObject
             where TBiz : EntityObject => SaveAsUser<TBiz, TDal>(item, SpecialIds.AdminUserId);
 
-        internal static TBiz SaveAsUser<TBiz, TDal>(TBiz item, int userId)
+        private static TBiz SaveAsUser<TBiz, TDal>(TBiz item, int userId)
             where TDal : class, IQpEntityObject
             where TBiz : EntityObject
         {
             var entities = QPContext.EFContext;
-            var dalItem = DefaultMapper.GetDalObject<TDal, TBiz>(item);
+            var dalItem = QPContext.Map<TDal>(item);
 
             if (item.ForceId != 0)
             {
@@ -70,14 +43,14 @@ namespace Quantumart.QP8.BLL.Repository
             entities.Entry(dalItem).State = EntityState.Added;
             entities.SaveChanges();
 
-            return DefaultMapper.GetBizObject<TBiz, TDal>(dalItem);
+            return QPContext.Map<TBiz>(dalItem);
         }
 
         internal static TBiz Update<TBiz, TDal>(TBiz item)
             where TDal : class, IQpEntityObject
             where TBiz : EntityObject
         {
-            var dalItem = DefaultMapper.GetDalObject<TDal, TBiz>(item);
+            var dalItem = QPContext.Map<TDal>(item);
             var entities = QPContext.EFContext;
             dalItem.LastModifiedBy = QPContext.CurrentUserId;
 
@@ -88,7 +61,7 @@ namespace Quantumart.QP8.BLL.Repository
 
             entities.Entry(dalItem).State = EntityState.Modified;
             entities.SaveChanges();
-            return DefaultMapper.GetBizObject<TBiz, TDal>(dalItem);
+            return QPContext.Map<TBiz>(dalItem);
         }
 
         internal static void Delete<TDal>(int id)
@@ -186,7 +159,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         }
 
-        public static void ChangeIdentityInsertState(string entityTypeCode, bool state)
+        private static void ChangeIdentityInsertState(string entityTypeCode, bool state)
         {
             if (QPContext.DatabaseType != DatabaseType.SqlServer)
             {
@@ -204,7 +177,7 @@ namespace Quantumart.QP8.BLL.Repository
             }
         }
 
-        internal static string TableIdToInsert(string entityTypeCode)
+        private static string TableIdToInsert(string entityTypeCode)
         {
             string tableId;
             switch (entityTypeCode)
@@ -241,7 +214,7 @@ namespace Quantumart.QP8.BLL.Repository
             return tableId;
         }
 
-        internal static string TableToInsert(string entityTypeCode)
+        private static string TableToInsert(string entityTypeCode)
         {
             string table = null;
             switch (entityTypeCode)
@@ -290,7 +263,7 @@ namespace Quantumart.QP8.BLL.Repository
             return table;
         }
 
-        internal static void TurnIdentityInsertOn(string entityTypeCode, EntityObject objectForCheck)
+        internal static void TurnIdentityInsertOn(string entityTypeCode, EntityObject objectForCheck = null)
         {
             if (objectForCheck != null && QPConnectionScope.Current.IdentityInsertOptions.Contains(entityTypeCode))
             {
@@ -300,30 +273,19 @@ namespace Quantumart.QP8.BLL.Repository
             ChangeIdentityInsertState(entityTypeCode, true);
         }
 
-        internal static void TurnIdentityInsertOn(string entityTypeCode)
-        {
-            TurnIdentityInsertOn(entityTypeCode, null);
-        }
-
         internal static void TurnIdentityInsertOff(string entityTypeCode)
         {
             ChangeIdentityInsertState(entityTypeCode, false);
         }
 
-        private static readonly MethodInfo ContainsMethod = typeof(Enumerable).GetMethods()
-            .FirstOrDefault(m => m.Name == "Contains" && m.GetParameters().Length == 2)
-            .MakeGenericMethod(typeof(object));
-
         public static void PostReplay(HashSet<string> insertIdentityOptions)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (scope.CurrentDbType == DatabaseType.Postgres)
             {
-                if (scope.CurrentDbType == DatabaseType.Postgres)
+                foreach (var key in insertIdentityOptions)
                 {
-                    foreach (var key in insertIdentityOptions)
-                    {
-                        Common.PostgresUpdateSequence(scope.DbConnection, TableToInsert(key), TableIdToInsert(key));
-                    }
+                    Common.PostgresUpdateSequence(scope.DbConnection, TableToInsert(key), TableIdToInsert(key));
                 }
             }
         }

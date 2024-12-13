@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AutoMapper;
 using E = Quantumart.QP8.Constants.Cdc.Enums;
 
 namespace Quantumart.QP8.BLL.Models.NotificationSender
@@ -31,7 +30,7 @@ namespace Quantumart.QP8.BLL.Models.NotificationSender
 
         private static CdcTableTypeModel HandleSimpleTableTypeDataModifier(CdcTableTypeModel prevInSortOrder, CdcTableTypeModel nextInSortOrder)
         {
-            var result = Mapper.Map<CdcTableTypeModel, CdcTableTypeModel>(nextInSortOrder);
+            var result = QPContext.Map<CdcTableTypeModel>(nextInSortOrder);
             if (result.Action == E.CdcOperationType.Update && prevInSortOrder.Action == E.CdcOperationType.Insert)
             {
                 result.Action = E.CdcOperationType.Insert;
@@ -42,7 +41,7 @@ namespace Quantumart.QP8.BLL.Models.NotificationSender
 
         private static CdcTableTypeModel HandleContentDataTableTypeDataModifier(CdcTableTypeModel prevInSortOrder, CdcTableTypeModel nextInSortOrder)
         {
-            var result = Mapper.Map<CdcTableTypeModel, CdcTableTypeModel>(nextInSortOrder);
+            var result = QPContext.Map<CdcTableTypeModel>(nextInSortOrder);
             if (result.Action == E.CdcOperationType.Update)
             {
                 if (prevInSortOrder.Action == E.CdcOperationType.Insert)

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
@@ -33,12 +32,10 @@ namespace Quantumart.QP8.BLL.Repository.EntityPermissions
     {
         public IEnumerable<EntityPermissionListItem> List(ListCommand cmd, int parentId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                cmd.SortExpression = TranslateHelper.TranslateSortExpression(cmd.SortExpression);
-                var rows = Common.GetContentPermissionPage(scope.DbConnection, parentId, cmd.SortExpression, cmd.FilterExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
-                return MapperFacade.PermissionListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            cmd.SortExpression = TranslateHelper.TranslateSortExpression(cmd.SortExpression);
+            var rows = Common.GetContentPermissionPage(scope.DbConnection, parentId, cmd.SortExpression, cmd.FilterExpression, cmd.StartRecord, cmd.PageSize, out totalRecords);
+            return QPContext.Map<EntityPermissionListItem[]>(rows.ToList());
         }
 
         public EntityPermission GetById(int id, bool include = true)
@@ -52,7 +49,7 @@ namespace Quantumart.QP8.BLL.Repository.EntityPermissions
                     .Include("LastModifiedByUser");
             }
 
-            return MapperFacade.ContentPermissionMapper.GetBizObject(set.SingleOrDefault(g => g.Id == id));
+            return QPContext.Map<EntityPermission>(set.SingleOrDefault(g => g.Id == id));
         }
 
         public EntityPermission Save(EntityPermission permission) => DefaultRepository.Save<EntityPermission, ContentPermissionDAL>(permission);

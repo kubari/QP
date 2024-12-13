@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.DAL;
 
 namespace Quantumart.QP8.BLL.Repository
@@ -27,7 +26,7 @@ namespace Quantumart.QP8.BLL.Repository
             using (var scope = new QPConnectionScope())
             {
                 var rows = Common.AssembleAction_GetSitePages(siteId, scope.DbConnection);
-                return MapperFacade.DataRowMapper.Map<PageInfo>(rows);
+                return QPContext.Map<PageInfo[]>(rows);
             }
         }
 
@@ -66,7 +65,7 @@ namespace Quantumart.QP8.BLL.Repository
             using (var scope = new QPConnectionScope())
             {
                 var rows = Common.AssembleAction_TemplatePages(templateId, scope.DbConnection);
-                return MapperFacade.DataRowMapper.Map<PageInfo>(rows);
+                return QPContext.Map<PageInfo[]>(rows);
             }
         }
     }

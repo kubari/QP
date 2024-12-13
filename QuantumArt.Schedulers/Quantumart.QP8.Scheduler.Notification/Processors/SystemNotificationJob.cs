@@ -162,7 +162,7 @@ namespace Quantumart.QP8.Scheduler.Notification.Processors
             using (new QPConnectionScope())
             {
                 var notificationModels = _externalNotificationService.GetPendingNotifications(providerName);
-                return Mapper.Map<List<SystemNotificationModel>, List<SystemNotificationDto>>(notificationModels).OrderBy(n => n.TransactionLsn).ToList();
+                return QPContext.Map<List<SystemNotificationDto>>(notificationModels).OrderBy(n => n.TransactionLsn).ToList();
             }
         }
 

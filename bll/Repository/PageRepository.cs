@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.DAL;
@@ -11,20 +10,19 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class PageRepository
+    internal static class PageRepository
     {
         internal static IEnumerable<PageListItem> ListPages(ListCommand cmd, int templateId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetPagesByTemplateId(scope.DbConnection, templateId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.PageRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetPagesByTemplateId(scope.DbConnection, templateId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<PageListItem[]>(rows.ToList());
         }
 
         internal static Page GetPagePropertiesById(int id)
         {
-            return MapperFacade.PageMapper.GetBizObject(QPContext.EFContext.PageSet.Include("PageTemplate.Site").Include("LastModifiedByUser")
+            return QPContext.Map<Page>(
+                QPContext.EFContext.PageSet.Include("PageTemplate.Site").Include("LastModifiedByUser")
                 .SingleOrDefault(g => g.Id == id)
             );
         }
@@ -40,18 +38,16 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<PageListItem> ListSitePages(ListCommand listCommand, int parentId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetPagesBySiteId(scope.DbConnection, parentId, listCommand.SortExpression, out totalRecords, listCommand.StartRecord, listCommand.PageSize);
-                return MapperFacade.PageRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetPagesBySiteId(scope.DbConnection, parentId, listCommand.SortExpression, out totalRecords, listCommand.StartRecord, listCommand.PageSize);
+            return  QPContext.Map<PageListItem[]>(rows.ToList());
         }
 
         /// <summary>
         /// Создает копию страницы
         /// </summary>
         /// <param name="page"></param>
-        internal static int CopyPage(Page page, int currentUserId)
+        internal static int CopyPage(Page page)
         {
             var oldId = page.Id;
             page.Id = 0;
@@ -77,18 +73,16 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static bool FileNameExists(Page page)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var pathToCheck = page.PageTemplate.Site.LiveDirectory + page.PageTemplate.TemplateFolder + page.Folder + page.FileName;
-                return Common.PageFileNameExists(scope.DbConnection, pathToCheck, page.PageTemplate.SiteId);
-            }
+            using var scope = new QPConnectionScope();
+            var pathToCheck = page.PageTemplate.Site.LiveDirectory + page.PageTemplate.TemplateFolder + page.Folder + page.FileName;
+            return Common.PageFileNameExists(scope.DbConnection, pathToCheck, page.PageTemplate.SiteId);
         }
 
-        internal static IEnumerable<Page> GetList(IEnumerable<int> IDs)
+        internal static IEnumerable<Page> GetList(IEnumerable<int> ids)
         {
-            IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(IDs).Distinct().ToArray();
-            return MapperFacade.PageMapper
-                .GetBizList(QPContext.EFContext.PageSet
+            IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
+            return QPContext.Map<Page[]>(
+                QPContext.EFContext.PageSet
                     .Where(f => decIDs.Contains(f.Id))
                     .ToList()
                 );
@@ -96,19 +90,15 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static string GetRelationsBetweenPages(string relationsBetweenTemplates)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetRelationsBetweenPages(scope.DbConnection, relationsBetweenTemplates);
-                return MultistepActionHelper.GetXmlFromDataRows(rows, "page");
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetRelationsBetweenPages(scope.DbConnection, relationsBetweenTemplates);
+            return MultistepActionHelper.GetXmlFromDataRows(rows, "page");
         }
 
         internal static IEnumerable<DataRow> CopySiteTemplatePages(int sourceSiteId, int destinationSiteId, string relationsBetweenTemplates)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.CopySiteTemplatePages(scope.DbConnection, sourceSiteId, destinationSiteId, relationsBetweenTemplates);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.CopySiteTemplatePages(scope.DbConnection, sourceSiteId, destinationSiteId, relationsBetweenTemplates);
         }
     }
 }

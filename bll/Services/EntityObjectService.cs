@@ -47,11 +47,11 @@ namespace Quantumart.QP8.BLL.Services
                 var folder = folderRepository.GetById(entityId);
                 if (!loadChilds)
                 {
-                    return Mapper.Map<Folder, EntityTreeItem>(folder);
+                    return QPContext.Map<EntityTreeItem>(folder);
                 }
 
                 var resultFolder = folderRepository.GetSelfAndChildrenWithSync(folder.ParentEntityId, folder.Id, pathHelper);
-                return Mapper.Map<Folder, EntityTreeItem>(resultFolder);
+                return QPContext.Map<EntityTreeItem>(resultFolder);
             }
 
             return null;

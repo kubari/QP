@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Npgsql;
 using Quantumart.QP8.Configuration;
 using Quantumart.QP8.Constants;

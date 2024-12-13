@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Services.DTO;
 using Quantumart.QP8.Constants;
@@ -13,31 +12,29 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class UserRepository
+    internal static class UserRepository
     {
         internal static IEnumerable<UserListItem> List(ListCommand cmd, UserListFilter filter, IEnumerable<int> selectedIDs, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var options = new UserPageOptions
             {
-                var options = new UserPageOptions
-                {
-                    SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? UserListItem.TranslateSortExpression(cmd.SortExpression) : null,
-                    StartRecord = cmd.StartRecord,
-                    PageSize = cmd.PageSize,
-                    SelectedIDs = selectedIDs
-                };
+                SortExpression = !string.IsNullOrWhiteSpace(cmd.SortExpression) ? UserListItem.TranslateSortExpression(cmd.SortExpression) : null,
+                StartRecord = cmd.StartRecord,
+                PageSize = cmd.PageSize,
+                SelectedIDs = selectedIDs
+            };
 
-                if (filter != null)
-                {
-                    options.Email = filter.Email;
-                    options.FirstName = filter.FirstName;
-                    options.LastName = filter.LastName;
-                    options.Login = filter.Login;
-                }
-
-                var rows = Common.GetUserPage(scope.DbConnection, options, out totalRecords);
-                return MapperFacade.UserListItemRowMapper.GetBizList(rows.ToList());
+            if (filter != null)
+            {
+                options.Email = filter.Email;
+                options.FirstName = filter.FirstName;
+                options.LastName = filter.LastName;
+                options.Login = filter.Login;
             }
+
+            var rows = Common.GetUserPage(scope.DbConnection, options, out totalRecords);
+            return QPContext.Map<UserListItem[]>(rows.ToList());
         }
 
         /// <summary>
@@ -49,12 +46,12 @@ namespace Quantumart.QP8.BLL.Repository
             var cache = QPContext.GetUserCache();
             if (cache != null)
             {
-                result.AddRange(ids.Select(id => cache.ContainsKey(id) ? cache[id] : GetRealById(id)));
+                result.AddRange(ids.Select(id => cache.TryGetValue(id, out var value) ? value : GetRealById(id)));
             }
             else
             {
                 IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-                result = MapperFacade.UserMapper.GetBizList(QPContext.EFContext.UserSet.Where(f => decIDs.Contains(f.Id)).ToList());
+                result =  QPContext.Map<List<User>>(QPContext.EFContext.UserSet.Where(f => decIDs.Contains(f.Id)).ToList());
             }
 
             return result;
@@ -65,7 +62,7 @@ namespace Quantumart.QP8.BLL.Repository
             var users = QPContext.EFContext.UserSet
                 .Include(x => x.UserGroupBinds).ThenInclude(y=> y.UserGroup)
                 .Where(u => u.NTLogOn != null).ToList();
-            return MapperFacade.UserMapper.GetBizList(users);
+            return QPContext.Map<List<User>>(users);
         }
 
         internal static bool CheckAuthenticate(string login, string password) => Common.Authenticate(QPConnectionScope.Current.DbConnection, login, password, false, false) != null;
@@ -82,13 +79,13 @@ namespace Quantumart.QP8.BLL.Repository
             return GetRealById(id, stopRecursion);
         }
 
-        internal static User GetByIdFromCache(int id)
+        private static User GetByIdFromCache(int id)
         {
             User result = null;
             var cache = QPContext.GetUserCache();
-            if (cache != null && cache.ContainsKey(id))
+            if (cache != null && cache.TryGetValue(id, out var value))
             {
-                result = cache[id];
+                result = value;
             }
 
             return result;
@@ -96,7 +93,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         private static User GetRealById(int id, bool stopRecursion = false)
         {
-            var user = MapperFacade.UserMapper.GetBizObject(QPContext.EFContext.UserSet.SingleOrDefault(u => u.Id == id));
+            var user = QPContext.Map<User>(QPContext.EFContext.UserSet.SingleOrDefault(u => u.Id == id));
             if (!stopRecursion && user != null)
             {
                 user.LastModifiedByUser = GetById(user.LastModifiedBy, true);
@@ -112,7 +109,7 @@ namespace Quantumart.QP8.BLL.Repository
                 .Include(x => x.LastModifiedByUser)
                 .SingleOrDefault(u => u.Id == id);
 
-            return MapperFacade.UserMapper.GetBizObject(dal);
+            return QPContext.Map<User>(dal);
         }
 
         internal static User UpdateProfile(User user) => UpdateUser(user, true);
@@ -121,16 +118,14 @@ namespace Quantumart.QP8.BLL.Repository
 
         public static bool NewPasswordMathCurrentPassword(int userId, string newPassword)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.NewPasswordMatchCurrentPassword(scope.DbConnection, userId, newPassword);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.NewPasswordMatchCurrentPassword(scope.DbConnection, userId, newPassword);
         }
 
         private static User UpdateUser(User user, bool profileOnly = false)
         {
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.UserMapper.GetDalObject(user);
+            var dal = QPContext.Map<UserDAL>(user);
             dal.LastModifiedBy = QPContext.CurrentUserId;
             using (new QPConnectionScope())
             {
@@ -154,7 +149,7 @@ namespace Quantumart.QP8.BLL.Repository
                         dalDb.UserGroupBinds.Remove(g);
                     }
                 }
-                foreach (var g in MapperFacade.UserGroupMapper.GetDalList(user.Groups.ToList()))
+                foreach (var g in QPContext.Map<UserGroupDAL[]>(user.Groups.ToList()))
                 {
                     if (!indbGroupIDs.Contains(g.Id))
                     {
@@ -186,7 +181,7 @@ namespace Quantumart.QP8.BLL.Repository
                 UpdatePassword(user.Id, user.Password);
             }
 
-            var updated = MapperFacade.UserMapper.GetBizObject(dal);
+            var updated = QPContext.Map<User>(dal);
             return updated;
         }
 
@@ -195,7 +190,7 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<User> GetAllUsersList()
         {
-            return MapperFacade.UserMapper.GetBizList(QPContext.EFContext.UserSet.OrderBy(u => u.LogOn).ToList());
+            return QPContext.Map<User[]>(QPContext.EFContext.UserSet.OrderBy(u => u.LogOn).ToList());
         }
 
         /// <summary>
@@ -203,13 +198,13 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<User> GetAllUsersListWithGroups()
         {
-            return MapperFacade.UserMapper.GetBizList(QPContext.EFContext.UserSet
+            return QPContext.Map<User[]>(QPContext.EFContext.UserSet
                 .Include(x => x.UserGroupBinds).ThenInclude(y=> y.UserGroup).OrderBy(u => u.LogOn).ToList());
         }
 
         internal static string GeneratePassword() => "aA1!" + Guid.NewGuid().ToString("N").Substring(0, 16);
 
-        internal static void UpdatePassword(int userId, string password)
+        private static void UpdatePassword(int userId, string password)
         {
             using (new QPConnectionScope())
             {
@@ -225,7 +220,7 @@ namespace Quantumart.QP8.BLL.Repository
         internal static User SaveProperties(User user)
         {
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.UserMapper.GetDalObject(user);
+            var dal = QPContext.Map<UserDAL>(user);
             dal.LastModifiedBy = QPContext.CurrentUserId;
             using (new QPConnectionScope())
             {
@@ -239,8 +234,10 @@ namespace Quantumart.QP8.BLL.Repository
             {
                 if (dal.UserGroupBinds.All(x => x.UserGroupId != everyoneGroup.Id))
                 {
-                    var newBind = new UserUserGroupBindDAL();
-                    newBind.UserGroupId = everyoneGroup.Id;
+                    var newBind = new UserUserGroupBindDAL
+                    {
+                        UserGroupId = everyoneGroup.Id
+                    };
                     dal.UserGroupBinds.Add(newBind);
                     entities.Add(newBind);
                 }
@@ -258,7 +255,7 @@ namespace Quantumart.QP8.BLL.Repository
 
 
             // Save Groups
-            foreach (var s in MapperFacade.UserGroupMapper.GetDalList(user.Groups.ToList()))
+            foreach (var s in QPContext.Map<UserGroupDAL[]>(user.Groups.ToList()))
             {
                 entities.UserGroupSet.Attach(s);
                 var userGroupBind = new UserUserGroupBindDAL{User = dal, UserGroup = s};
@@ -282,7 +279,7 @@ namespace Quantumart.QP8.BLL.Repository
                 ChangeInsertBindTriggerState(true);
             }
 
-            var updated = MapperFacade.UserMapper.GetBizObject(dal);
+            var updated = QPContext.Map<User>(dal);
             return updated;
         }
 
@@ -375,11 +372,9 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static void Delete(int id)
         {
-            using (var ctx = new QPConnectionScope())
-            {
-                Common.RemoveUserDependencies(ctx.DbConnection, new []{ id });
-                DefaultRepository.Delete<UserDAL>(id);
-            }
+            using var ctx = new QPConnectionScope();
+            Common.RemoveUserDependencies(ctx.DbConnection, [id]);
+            DefaultRepository.Delete<UserDAL>(id);
         }
 
         internal static IEnumerable<UserDefaultFilter> GetContentDefaultFilters(int userId)

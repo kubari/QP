@@ -2,18 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Transactions;
 using System.Xml.Linq;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Newtonsoft.Json;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers;
@@ -50,7 +45,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 
         public static Article GetById(int id)
         {
-            return MapperFacade.ArticleMapper.GetBizObject(QPContext.EFContext.ArticleSet
+            return QPContext.Map<Article>(QPContext.EFContext.ArticleSet
                 .Include("Status")
                 .Include("Content")
                 .Include("LastModifiedByUser")
@@ -59,11 +54,11 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             );
         }
 
-        internal int GetIdByGuid(Guid guid) => GetIdsByGuids(new[] { guid })[0];
+        internal int GetIdByGuid(Guid guid) => GetIdsByGuids([guid])[0];
 
         public static List<Article> GetByIds(int[] ids)
         {
-            return MapperFacade.ArticleMapper.GetBizList(QPContext.EFContext.ArticleSet
+            return QPContext.Map<List<Article>>(QPContext.EFContext.ArticleSet
                 .Include("Status")
                 .Include("Content")
                 .Include("LastModifiedByUser")
@@ -75,10 +70,8 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 
         internal static void LockForUpdate(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.LockArticleForUpdate(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.LockArticleForUpdate(scope.DbConnection, id);
         }
 
         internal static StatusHistoryListItem GetStatusHistoryItem(int id)
@@ -86,7 +79,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             using (new QPConnectionScope())
             {
                 var item = Common.GetStatusHistoryItem(QPConnectionScope.Current.DbConnection, id).FirstOrDefault();
-                return item == null ? null : MapperFacade.StatusHistoryItemMapper.GetBizObject(item);
+                return item == null ? null : QPContext.Map<StatusHistoryListItem>(item);
             }
         }
 
@@ -96,7 +89,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             {
                 var content = ContentRepository.GetById(contentId);
                 var data = GetData(id, contentId, QPContext.IsLive, false, content.UseNativeEfTypes);
-                var result = MapperFacade.ArticleRowMapper.GetBizObject(data);
+                var result = QPContext.Map<Article>(data);
                 if (result != null)
                 {
                     result.ContentId = contentId;
@@ -120,8 +113,8 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 
             if (searchQueryParams == null)
             {
-                extensionContentIds = new int[0];
-                contentReferences = new ContentReference[0];
+                extensionContentIds = [];
+                contentReferences = [];
             }
             else
             {
@@ -163,12 +156,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             return result;
         }
 
-        internal static int GetCount(int contentId)
-        {
-            return GetCount(contentId, true);
-        }
-
-        internal static int GetCount(int contentId, bool includeArchive)
+        internal static int GetCount(int contentId, bool includeArchive = true)
         {
             using (new QPConnectionScope())
             {
@@ -219,7 +207,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
                 var sqlParams = new List<DbParameter>();
                 var sqlConnection = QPConnectionScope.Current.DbConnection;
                 var dbType = DatabaseTypeHelper.ResolveDatabaseType(sqlConnection);
-                var filters = MapperFacade.CustomFilterMapper.GetDalList(customFilter?.ToList()).ToArray();
+                var filters = QPContext.Map<CustomFilter[]>(customFilter?.ToList()).ToArray();
                 var filter = CommonCustomFilters.GetFilterQuery(
                     sqlConnection,
                     sqlParams,
@@ -382,34 +370,26 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 
         internal static List<ArticleListItem> GetLockedList(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return MapperFacade.ArticleListItemRowMapper.GetBizList(Common.GetLockedArticlesList(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, QPContext.CurrentUserId, out totalRecords));
-            }
+            using var scope = new QPConnectionScope();
+            return QPContext.Map<List<ArticleListItem>>(Common.GetLockedArticlesList(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, QPContext.CurrentUserId, out totalRecords));
         }
 
         internal static int GetLockedCount()
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetLockedArticlesCount(scope.DbConnection, QPContext.CurrentUserId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetLockedArticlesCount(scope.DbConnection, QPContext.CurrentUserId);
         }
 
         internal static List<ArticleListItem> GetArticlesForApprovalList(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return MapperFacade.ArticleListItemRowMapper.GetBizList(Common.GetArticlesWaitingForApproval(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, QPContext.CurrentUserId, out totalRecords));
-            }
+            using var scope = new QPConnectionScope();
+            return QPContext.Map<List<ArticleListItem>>(Common.GetArticlesWaitingForApproval(scope.DbConnection, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, QPContext.CurrentUserId, out totalRecords));
         }
 
         internal static int GetForApprovalCount()
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetArticlesWaitingForApprovalCount(scope.DbConnection, QPContext.CurrentUserId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetArticlesWaitingForApprovalCount(scope.DbConnection, QPContext.CurrentUserId);
         }
 
         private static IEnumerable<ArticleRelationSecurityParameter> GetRelationSecurityFilters(IEnumerable<Field> fields)
@@ -458,7 +438,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
             return new ArticleFullTextSearchParameter { HasError = ftsHasError, FieldIdList = ftsFieldIdList, QueryString = ftsQueryString, RawQueryString = rawQueryString, SearchResultLimit = searchResultLimit };
         }
 
-        public static string GetCommonFilter(IList<ArticleSearchQueryParam> searchQueryParams, string filter, IList<DbParameter> sqlParams)
+        private static string GetCommonFilter(IList<ArticleSearchQueryParam> searchQueryParams, string filter, IList<DbParameter> sqlParams)
             => SqlFilterComposer.Compose(new ArticleFilterSearchQueryParser().GetFilter(searchQueryParams, sqlParams), filter);
 
         public static IEnumerable<ArticleLinkSearchParameter> GetLinkSearchParameter(IEnumerable<ArticleSearchQueryParam> searchQueryParams)
@@ -485,125 +465,121 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories
 
         internal static List<ListItem> GetSimpleList(SimpleListQuery query)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var field = query.ListId != 0 ? FieldRepository.GetById(query.ListId) : null;
+            var fields = ContentRepository.GetDisplayFields(query.ParentEntityId, field).ToList();
+            if (!fields.Any())
             {
-                var field = query.ListId != 0 ? FieldRepository.GetById(query.ListId) : null;
-                var fields = ContentRepository.GetDisplayFields(query.ParentEntityId, field).ToList();
-                if (!fields.Any())
-                {
-                    return new List<ListItem>{};
-                }
-                var displayExpression = GetDisplayExpression(fields);
-                var isMany = field != null && (field.ExactType == FieldExactTypes.M2MRelation || field.ExactType == FieldExactTypes.M2ORelation);
-                var orderByExpression = isMany
-                    ? GetSimpleListOrderExpression(field, fields)
-                    : string.Empty;
+                return [];
+            }
+            var displayExpression = GetDisplayExpression(fields);
+            var isMany = field != null && (field.ExactType == FieldExactTypes.M2MRelation || field.ExactType == FieldExactTypes.M2ORelation);
+            var orderByExpression = isMany
+                ? GetSimpleListOrderExpression(field, fields)
+                : string.Empty;
 
-                var selection = new HashSet<int>(query.SelectedEntitiesIds ?? new int[] { });
-                if (query.TestEntityId != 0 && query.ActualEntityId.HasValue && isMany)
-                {
-                    var testResult = field.ExactType == FieldExactTypes.M2MRelation && field.LinkId.HasValue
-                        ? Common.TestM2MValue(
-                            scope.DbConnection, field.LinkId.Value, query.ActualEntityId.Value, query.TestEntityId
-                        )
-                        : Common.TestM2OValue(
-                            scope.DbConnection, new Common.FieldInfo()
-                            {
-                                Id = field.BackRelation.Id,
-                                ContentId = field.BackRelation.ContentId,
-                                Name = field.BackRelation.Name
-                            }, query.ActualEntityId.Value, query.TestEntityId
-                        );
-
-                    if (testResult)
-                    {
-                        selection.Add(query.TestEntityId);
-                    }
-                    else
-                    {
-                        selection.Remove(query.TestEntityId);
-                    }
-                }
-
-                var isUserAdmin = QPContext.IsAdmin;
-                var availableForList = isUserAdmin || SecurityRepository.IsEntityAccessible(EntityTypeCode.Content, query.ParentEntityId, ActionTypeCode.List);
-
-
-                var sqlFilterParameters = new List<DbParameter>();
-                var filters = MapperFacade.CustomFilterMapper.GetDalList(query?.Filter?.ToList());
-
-                if (!availableForList)
-                {
-                    filters.Add(CustomFilter.GetFalseFilter());
-                }
-
-                var filter = CommonCustomFilters.GetFilterQuery(
-                        scope.DbConnection,
-                        sqlFilterParameters,
-                        scope.CurrentDbType,
-                        EntityTypeCode.Article,
-                        query.ParentEntityId,
-                        filters.ToArray(),
-                        fields[0].Content.UseNativeEfTypes
+            var selection = new HashSet<int>(query.SelectedEntitiesIds ?? []);
+            if (query.TestEntityId != 0 && query.ActualEntityId.HasValue && isMany)
+            {
+                var testResult = field.ExactType == FieldExactTypes.M2MRelation && field.LinkId.HasValue
+                    ? Common.TestM2MValue(
+                        scope.DbConnection, field.LinkId.Value, query.ActualEntityId.Value, query.TestEntityId
+                    )
+                    : Common.TestM2OValue(
+                        scope.DbConnection, new Common.FieldInfo()
+                        {
+                            Id = field.BackRelation.Id,
+                            ContentId = field.BackRelation.ContentId,
+                            Name = field.BackRelation.Name
+                        }, query.ActualEntityId.Value, query.TestEntityId
                     );
 
-                var useSecurity = !isUserAdmin && ContentRepository.IsArticlePermissionsAllowed(query.ParentEntityId);
-                var extraFrom = GetExtraFromForRelations(fields);
-                var rows = Common.GetArticlesSimpleList(
-                    QPContext.EFContext,
-                    scope.DbConnection,
-                    QPContext.CurrentUserId,
-                    query.ParentEntityId,
-                    displayExpression,
-                    query.SelectionMode,
-                    PermissionLevel.List,
-                    filter,
-                    useSecurity,
-                    selection.ToArray(),
-                    null,
-                    null,
-                    string.Empty,
-                    extraFrom,
-                    orderByExpression,
-                    sqlParameters: sqlFilterParameters);
-
-                return rows.Select(r => new ListItem
+                if (testResult)
                 {
-                    Text = Cleaner.RemoveAllHtmlTags(r.Field<string>("title")),
-                    Value = r["id"].ToString(),
-                    Selected = bool.Parse(r["is_selected"].ToString())
-                }).ToList();
+                    selection.Add(query.TestEntityId);
+                }
+                else
+                {
+                    selection.Remove(query.TestEntityId);
+                }
             }
+
+            var isUserAdmin = QPContext.IsAdmin;
+            var availableForList = isUserAdmin || SecurityRepository.IsEntityAccessible(EntityTypeCode.Content, query.ParentEntityId, ActionTypeCode.List);
+
+
+            var sqlFilterParameters = new List<DbParameter>();
+            var filters = QPContext.Map<List<CustomFilter>>(query.Filter?.ToList());
+
+            if (!availableForList)
+            {
+                filters.Add(CustomFilter.GetFalseFilter());
+            }
+
+            var filter = CommonCustomFilters.GetFilterQuery(
+                scope.DbConnection,
+                sqlFilterParameters,
+                scope.CurrentDbType,
+                EntityTypeCode.Article,
+                query.ParentEntityId,
+                filters.ToArray(),
+                fields[0].Content.UseNativeEfTypes
+            );
+
+            var useSecurity = !isUserAdmin && ContentRepository.IsArticlePermissionsAllowed(query.ParentEntityId);
+            var extraFrom = GetExtraFromForRelations(fields);
+            var rows = Common.GetArticlesSimpleList(
+                QPContext.EFContext,
+                scope.DbConnection,
+                QPContext.CurrentUserId,
+                query.ParentEntityId,
+                displayExpression,
+                query.SelectionMode,
+                PermissionLevel.List,
+                filter,
+                useSecurity,
+                selection.ToArray(),
+                null,
+                null,
+                string.Empty,
+                extraFrom,
+                orderByExpression,
+                sqlParameters: sqlFilterParameters);
+
+            return rows.Select(r => new ListItem
+            {
+                Text = Cleaner.RemoveAllHtmlTags(r.Field<string>("title")),
+                Value = r["id"].ToString(),
+                Selected = bool.Parse(r["is_selected"].ToString() ?? "false")
+            }).ToList();
         }
 
         internal static IEnumerable<EntityTreeItem> GetArticlesTreeForFtsResult(string commonFilter, Field treeField, string filterQuery, IList<ArticleLinkSearchParameter> linkedFilters, IList<ArticleContextQueryParam> contextQuery, ICollection<DbParameter> filterSqlParams, int[] extensionContentIds, ArticleFullTextSearchParameter ftsOptions)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var searchFilterQuery = GetSearchFiltersQuery(commonFilter, treeField, filterQuery, linkedFilters, contextQuery, filterSqlParams, ftsOptions.SearchResultLimit);
+            var searchIds = Common.GetFilterAndFtsSearchResult(scope.DbConnection, treeField.ContentId, extensionContentIds, ftsOptions, searchFilterQuery, filterSqlParams).ToList();
+
+            var parentIds = Common.GetParentIdsTreeResult(scope.DbConnection, searchIds, treeField.Id, treeField.Name, treeField.ContentId);
+            var treeItems = GetArticleTreeFilteredResult(parentIds, commonFilter, treeField, filterSqlParams).ToList();
+            var treeItemsDict = treeItems.ToDictionary(kv => kv.Id);
+            foreach (var kv in treeItemsDict.Where(ti => searchIds.Contains(int.Parse(ti.Key))))
             {
-                var searchFilterQuery = GetSearchFiltersQuery(commonFilter, treeField, filterQuery, linkedFilters, contextQuery, filterSqlParams, ftsOptions.SearchResultLimit);
-                var searchIds = Common.GetFilterAndFtsSearchResult(scope.DbConnection, treeField.ContentId, extensionContentIds, ftsOptions, searchFilterQuery, filterSqlParams).ToList();
-
-                var parentIds = Common.GetParentIdsTreeResult(scope.DbConnection, searchIds, treeField.Id, treeField.Name, treeField.ContentId);
-                var treeItems = GetArticleTreeFilteredResult(parentIds, commonFilter, treeField, filterSqlParams).ToList();
-                var treeItemsDict = treeItems.ToDictionary(kv => kv.Id);
-                foreach (var kv in treeItemsDict.Where(ti => searchIds.Contains(int.Parse(ti.Key))))
-                {
-                    kv.Value.IsHighlighted = true;
-                }
-
-                foreach (var kv in treeItemsDict.Where(kv => kv.Value.ParentId.HasValue))
-                {
-                    var parentEntity = treeItemsDict.Single(oe => oe.Key == kv.Value.ParentId.ToString());
-                    var childList = (parentEntity.Value.Children ?? new List<EntityTreeItem>()).ToList();
-                    childList.Add(kv.Value);
-                    parentEntity.Value.Children = childList;
-                }
-
-                return treeItems.Where(kv => !kv.ParentId.HasValue);
+                kv.Value.IsHighlighted = true;
             }
+
+            foreach (var kv in treeItemsDict.Where(kv => kv.Value.ParentId.HasValue))
+            {
+                var parentEntity = treeItemsDict.Single(oe => oe.Key == kv.Value.ParentId.ToString());
+                var childList = (parentEntity.Value.Children ?? new List<EntityTreeItem>()).ToList();
+                childList.Add(kv.Value);
+                parentEntity.Value.Children = childList;
+            }
+
+            return treeItems.Where(kv => !kv.ParentId.HasValue);
         }
 
-        internal static string GetSearchFiltersQuery(string commonFilter, Field treeField, string filterQuery, IList<ArticleLinkSearchParameter> linkedFilters, IList<ArticleContextQueryParam> contextQuery, ICollection<DbParameter> filterSqlParams, int searchLimit)
+        private static string GetSearchFiltersQuery(string commonFilter, Field treeField, string filterQuery, IList<ArticleLinkSearchParameter> linkedFilters, IList<ArticleContextQueryParam> contextQuery, ICollection<DbParameter> filterSqlParams, int searchLimit)
         {
             if (string.IsNullOrEmpty(filterQuery) && (linkedFilters == null || !linkedFilters.Any()))
             {
@@ -637,7 +613,7 @@ WHERE {whereBuilder}
             return GetArticleTreeItemsResult(commonFilter, extraFilter, treeField, null, sqlParameters);
         }
 
-        internal static IEnumerable<EntityTreeItem> GetArticleTreeFilteredResult(IList<int> idsToFilter, string commonFilter, Field treeField, ICollection<DbParameter> sqlParameters)
+        private static IEnumerable<EntityTreeItem> GetArticleTreeFilteredResult(IList<int> idsToFilter, string commonFilter, Field treeField, ICollection<DbParameter> sqlParameters)
         {
             var dbType = QPContext.DatabaseType;
             var extraFilter = commonFilter.Replace("c.", "cnt.");
@@ -646,66 +622,64 @@ WHERE {whereBuilder}
                 : GetArticleTreeItemsResult($"{commonFilter} AND c.content_item_id IN (SELECT id FROM {SqlQuerySyntaxHelper.IdList(dbType, "@ids", "i")}) ", extraFilter, treeField, idsToFilter, sqlParameters);
         }
 
-        internal static IEnumerable<EntityTreeItem> GetArticleTreeItemsResult(string commonFilter, string extraFilter, Field treeField, IList<int> idsToFilter, ICollection<DbParameter> sqlParameters)
+        private static IEnumerable<EntityTreeItem> GetArticleTreeItemsResult(string commonFilter, string extraFilter, Field treeField, IList<int> idsToFilter, ICollection<DbParameter> sqlParameters)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var dbType = QPContext.DatabaseType;
-                var useSecurity = !QPContext.IsAdmin && ContentRepository.IsArticlePermissionsAllowed(treeField.ContentId);
-                var cntExpr = $" CASE WHEN (SELECT COUNT(content_item_id) FROM content_{treeField.ContentId}_united cnt WHERE {SqlQuerySyntaxHelper.EscapeEntityName(dbType, treeField.Name)} = c.content_item_id AND {extraFilter}) > 0 THEN 1 ELSE 0 END";
-                var extraSelect = $@", c.{treeField.Name} AS parentId,
+            using var scope = new QPConnectionScope();
+            var dbType = QPContext.DatabaseType;
+            var useSecurity = !QPContext.IsAdmin && ContentRepository.IsArticlePermissionsAllowed(treeField.ContentId);
+            var cntExpr = $" CASE WHEN (SELECT COUNT(content_item_id) FROM content_{treeField.ContentId}_united cnt WHERE {SqlQuerySyntaxHelper.EscapeEntityName(dbType, treeField.Name)} = c.content_item_id AND {extraFilter}) > 0 THEN 1 ELSE 0 END";
+            var extraSelect = $@", c.{treeField.Name} AS parentId,
 cil.locked_by,
 {SqlQuerySyntaxHelper.ConcatStrValues(dbType, "lu.first_name", "' '", "lu.last_name")} AS locker_name,
 {SqlQuerySyntaxHelper.CastToBool(dbType, cntExpr)} AS has_children ";
 
-                var fields = treeField.TreeFieldTitleCount <= 1
-                    ? null
-                    : ((IContentRepository)new ContentRepository()).GetDisplayFieldIds(treeField.ContentId, treeField.IncludeRelationsInTitle, treeField.Id)
-                    .Take(treeField.TreeFieldTitleCount)
-                    .Select(FieldRepository.GetById).ToList();
+            var fields = treeField.TreeFieldTitleCount <= 1
+                ? null
+                : ((IContentRepository)new ContentRepository()).GetDisplayFieldIds(treeField.ContentId, treeField.IncludeRelationsInTitle, treeField.Id)
+                .Take(treeField.TreeFieldTitleCount)
+                .Select(FieldRepository.GetById).ToList();
 
-                fields = fields ?? new[] { treeField.Relation }.ToList();
-                var extraFrom = " LEFT JOIN content_item cil ON c.content_item_id = cil.content_item_id AND locked_by IS NOT NULL LEFT JOIN users lu ON lu.user_id = cil.locked_by " + GetExtraFromForRelations(fields);
-                var rows = Common.GetArticlesSimpleList(
-                    QPContext.EFContext,
-                    scope.DbConnection,
-                    QPContext.CurrentUserId,
-                    treeField.ContentId,
-                    GetDisplayExpression(fields),
-                    ListSelectionMode.AllItems,
-                    PermissionLevel.List,
-                    commonFilter,
-                    useSecurity,
-                    null,
-                    idsToFilter,
-                    ArticleFullTextSearchSettings.SearchResultLimit,
-                    extraSelect: extraSelect,
-                    extraFrom: extraFrom,
-                    orderBy: GetSimpleListOrderExpression(treeField, fields),
-                    sqlParameters: sqlParameters);
+            fields = fields ?? new[] { treeField.Relation }.ToList();
+            var extraFrom = " LEFT JOIN content_item cil ON c.content_item_id = cil.content_item_id AND locked_by IS NOT NULL LEFT JOIN users lu ON lu.user_id = cil.locked_by " + GetExtraFromForRelations(fields);
+            var rows = Common.GetArticlesSimpleList(
+                QPContext.EFContext,
+                scope.DbConnection,
+                QPContext.CurrentUserId,
+                treeField.ContentId,
+                GetDisplayExpression(fields),
+                ListSelectionMode.AllItems,
+                PermissionLevel.List,
+                commonFilter,
+                useSecurity,
+                null,
+                idsToFilter,
+                ArticleFullTextSearchSettings.SearchResultLimit,
+                extraSelect: extraSelect,
+                extraFrom: extraFrom,
+                orderBy: GetSimpleListOrderExpression(treeField, fields),
+                sqlParameters: sqlParameters);
 
-                return rows.Select(dr =>
+            return rows.Select(dr =>
+            {
+                var id = Convert.ToInt32(dr["id"]);
+                var result = new EntityTreeItem
                 {
-                    var id = Convert.ToInt32(dr["id"]);
-                    var result = new EntityTreeItem
-                    {
-                        Id = id.ToString(CultureInfo.InvariantCulture),
-                        ParentId = Converter.ToNullableInt32(dr["parentId"]),
-                        Alias = Cleaner.RemoveAllHtmlTags(dr.Field<string>("title")),
-                        HasChildren = dr.Field<bool>("has_children")
-                    };
+                    Id = id.ToString(CultureInfo.InvariantCulture),
+                    ParentId = Converter.ToNullableInt32(dr["parentId"]),
+                    Alias = Cleaner.RemoveAllHtmlTags(dr.Field<string>("title")),
+                    HasChildren = dr.Field<bool>("has_children")
+                };
 
-                    var lockedBy = (int?)dr.Field<decimal?>("locked_by");
-                    if (lockedBy.HasValue)
-                    {
-                        result.LockedByToolTip = LockableEntityObject.GetLockedByToolTip(lockedBy.Value, dr.Field<string>("locker_name"));
-                        result.LockedByYou = LockableEntityObject.IsLockedByYou(lockedBy.Value);
-                        result.LockedByAnyone = LockableEntityObject.IsLockedByAnyone(lockedBy.Value);
-                    }
+                var lockedBy = (int?)dr.Field<decimal?>("locked_by");
+                if (lockedBy.HasValue)
+                {
+                    result.LockedByToolTip = LockableEntityObject.GetLockedByToolTip(lockedBy.Value, dr.Field<string>("locker_name"));
+                    result.LockedByYou = LockableEntityObject.IsLockedByYou(lockedBy.Value);
+                    result.LockedByAnyone = LockableEntityObject.IsLockedByAnyone(lockedBy.Value);
+                }
 
-                    return result;
-                });
-            }
+                return result;
+            });
         }
 
         private static string GetExtraFromForRelations(IEnumerable<Field> displayFields)
@@ -771,7 +745,7 @@ cil.locked_by,
             return sb.ToString();
         }
 
-        public static string GetDisplayExpression(IEnumerable<Field> displayFields)
+        private static string GetDisplayExpression(IEnumerable<Field> displayFields)
         {
             var parts = new List<string>();
             var relCounter = 0;
@@ -793,7 +767,7 @@ cil.locked_by,
                             ? new[] { content.JoinRootId.Value }.ToList()
                             : (content.UnionSourceContentIDs.Any()
                                 ? content.UnionSourceContentIDs
-                                : new[] { field.RelateToContentId.Value }).ToList();
+                                : [field.RelateToContentId.Value]).ToList();
                     }
 
                     if (fieldIds.Any() && field.LinkId.HasValue)
@@ -858,7 +832,7 @@ cil.locked_by,
             }
         }
 
-        internal static DataTable GetData(
+        private static DataTable GetData(
             IEnumerable<int> ids,
             int contentId,
             bool isVirtual,
@@ -960,7 +934,7 @@ cil.locked_by,
             return article;
         }
 
-        internal static void ClearChildDelaysForChild(int childId)
+        private static void ClearChildDelaysForChild(int childId)
         {
             using (new QPConnectionScope())
             {
@@ -1036,7 +1010,7 @@ cil.locked_by,
             bool includeArchive,
             bool useNativeBool)
         {
-            if (restrictToIds != null && restrictToIds.Length == 0)
+            if (restrictToIds is { Length: 0 })
             {
                 return 0;
             }
@@ -1068,7 +1042,7 @@ cil.locked_by,
         {
             using (new QPConnectionScope())
             {
-                var dict = Common.GetLinkedArticlesMultiple(QPConnectionScope.Current.DbConnection, new [] {linkId}, ids, QPContext.IsLive, excludeArchive)[linkId];
+                var dict = Common.GetLinkedArticlesMultiple(QPConnectionScope.Current.DbConnection, [linkId], ids, QPContext.IsLive, excludeArchive)[linkId];
                 return dict.ToDictionary(n => n.Key, m => string.Join(",", m.Value));
             }
         }
@@ -1084,8 +1058,9 @@ cil.locked_by,
         /// <summary>
         /// Возвращает связанные статьи (для поля M2O)
         /// </summary>
-        /// <param name="fieldId">ID базового поля связи</param>
+        /// <param name="fieldIds"></param>
         /// <param name="id">ID статьи</param>
+        /// <param name="excludeArchive"></param>
         /// <returns>список связанных статей через запятую</returns>
         internal static Dictionary<int, string> GetRelatedItems(
             IEnumerable<int> fieldIds, int? id, bool excludeArchive = false)
@@ -1147,7 +1122,7 @@ cil.locked_by,
                     UseNativeBool = field.Content.UseNativeEfTypes
 
                 };
-                var dict = Common.GetRelatedArticlesMultiple(QPConnectionScope.Current.DbConnection, new [] {fi}, ids, QPContext.IsLive, excludeArchive)[fieldId];
+                var dict = Common.GetRelatedArticlesMultiple(QPConnectionScope.Current.DbConnection, [fi], ids, QPContext.IsLive, excludeArchive)[fieldId];
                 return dict.ToDictionary(n => n.Key, m => string.Join(",", m.Value));
             }
         }
@@ -1165,43 +1140,37 @@ cil.locked_by,
                 }
             ).ToList();
 
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetRelatedArticlesMultiple(
-                    scope.DbConnection, fiList, ids, QPContext.IsLive, excludeArchive
-                );
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetRelatedArticlesMultiple(
+                scope.DbConnection, fiList, ids, QPContext.IsLive, excludeArchive
+            );
         }
 
         internal static void SetArchiveFlag(IList<int> ids, bool flag, bool withAggregated = false)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (ids != null && ids.Any())
             {
-                if (ids != null && ids.Any())
-                {
-                    var stageIds = Enumerable.Empty<int>().ToList();
-                    var liveIds = Enumerable.Empty<int>().ToList();
-                    var cnn = scope.DbConnection;
-                    Common.GetContentModification(cnn, ids, withAggregated, false, ref liveIds, ref stageIds);
-                    Common.SetArchiveFlag(cnn, ids, QPContext.CurrentUserId, flag, withAggregated);
-                    Common.UpdateContentModification(cnn, liveIds, stageIds);
-                }
+                var stageIds = Enumerable.Empty<int>().ToList();
+                var liveIds = Enumerable.Empty<int>().ToList();
+                var cnn = scope.DbConnection;
+                Common.GetContentModification(cnn, ids, withAggregated, false, ref liveIds, ref stageIds);
+                Common.SetArchiveFlag(cnn, ids, QPContext.CurrentUserId, flag, withAggregated);
+                Common.UpdateContentModification(cnn, liveIds, stageIds);
             }
         }
 
         internal static void Publish(IList<int> ids, bool withAggregated = false)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (ids != null && ids.Any())
             {
-                if (ids != null && ids.Any())
-                {
-                    var stageIds = Enumerable.Empty<int>().ToList();
-                    var liveIds = Enumerable.Empty<int>().ToList();
-                    var cnn = scope.DbConnection;
-                    Common.GetContentModification(cnn, ids, withAggregated, false, ref liveIds, ref stageIds);
-                    Common.Publish(cnn, ids, QPContext.CurrentUserId, withAggregated);
-                    Common.UpdateContentModification(cnn, liveIds, stageIds);
-                }
+                var stageIds = Enumerable.Empty<int>().ToList();
+                var liveIds = Enumerable.Empty<int>().ToList();
+                var cnn = scope.DbConnection;
+                Common.GetContentModification(cnn, ids, withAggregated, false, ref liveIds, ref stageIds);
+                Common.Publish(cnn, ids, QPContext.CurrentUserId, withAggregated);
+                Common.UpdateContentModification(cnn, liveIds, stageIds);
             }
         }
 
@@ -1212,10 +1181,8 @@ cil.locked_by,
 
         internal static int CountChildren(int articleId, bool countArchived)
         {
-            using (new QPConnectionScope())
-            {
-                return Common.CountChildArticles(QPConnectionScope.Current.DbConnection, articleId, countArchived);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.CountChildArticles(QPConnectionScope.Current.DbConnection, articleId, countArchived);
         }
 
         private static readonly Regex DynamicColumnNamePattern = new Regex($@"^{Field.Prefix}(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -1275,84 +1242,76 @@ cil.locked_by,
 
         internal static bool CheckRelationCondition(int id, int contentId, string relCondition)
         {
-            using (new QPConnectionScope())
-            {
-                return Common.CheckRelationCondition(QPConnectionScope.Current.DbConnection, id, contentId, relCondition);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.CheckRelationCondition(QPConnectionScope.Current.DbConnection, id, contentId, relCondition);
         }
 
         internal static int RemoveSiteArticles(int siteId, int articleToRemove)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.RemovingActions_RemoveSiteContentItems(siteId, articleToRemove, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.RemovingActions_RemoveSiteContentItems(siteId, articleToRemove, scope.DbConnection);
         }
 
         internal static IEnumerable<Article> LoadAggregatedArticles(Article article, bool isLive)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (article.IsNew)
             {
-                if (article.IsNew)
-                {
-                    return Enumerable.Empty<Article>();
-                }
-
-                var values = article.FieldValues.Where(n => n.Field.IsClassifier).ToList();
-
-                if (!values.Any())
-                {
-                    return Enumerable.Empty<Article>();
-                }
-
-                if (isLive)
-                {
-                    values = article.LiveFieldValues.Where(n => n.Field.IsClassifier).ToList();
-                }
-
-                var classifierFields = values.Select(n => n.Field.Id).ToArray();
-                var types = values.Where(n => !string.IsNullOrEmpty(n.Value)).Select(n => int.Parse(n.Value)).ToArray();
-                var aggregatedArticlesId = Common.GetAggregatedArticlesIDs(scope.DbConnection, article.Id, classifierFields, types, isLive).ToList();
-                if (aggregatedArticlesId.Any())
-                {
-                    return MapperFacade.ArticleMapper.GetBizList(
-                        QPContext.EFContext.ArticleSet
-                            .Include("Status")
-                            .Include("Content")
-                            .Include("LastModifiedByUser")
-                            .Include("LockedByUser")
-                            .Where(a => aggregatedArticlesId.Contains(a.Id))
-                            .ToList());
-                }
-
-                return Enumerable.Empty<Article>();
+                return [];
             }
+
+            var values = article.FieldValues.Where(n => n.Field.IsClassifier).ToList();
+
+            if (!values.Any())
+            {
+                return [];
+            }
+
+            if (isLive)
+            {
+                values = article.LiveFieldValues.Where(n => n.Field.IsClassifier).ToList();
+            }
+
+            var classifierFields = values.Select(n => n.Field.Id).ToArray();
+            var types = values.Where(n => !string.IsNullOrEmpty(n.Value)).Select(n => int.Parse(n.Value)).ToArray();
+            var aggregatedArticlesId = Common.GetAggregatedArticlesIDs(scope.DbConnection, article.Id, classifierFields, types, isLive).ToList();
+            if (aggregatedArticlesId.Any())
+            {
+                return QPContext.Map<Article[]>(
+                    QPContext.EFContext.ArticleSet
+                        .Include("Status")
+                        .Include("Content")
+                        .Include("LastModifiedByUser")
+                        .Include("LockedByUser")
+                        .Where(a => aggregatedArticlesId.Contains(a.Id))
+                        .ToList());
+            }
+
+            return [];
         }
 
         internal static List<Article> LoadVariationArticles(Article article)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (article.IsNew || !article.UseVariations)
             {
-                if (article.IsNew || !article.UseVariations)
-                {
-                    return new List<Article>();
-                }
-
-                var variationArticlesId = Common.GetVariationArticlesIDs(scope.DbConnection, article.Id, article.ContentId, article.Content.VariationField.Name).ToList();
-                if (variationArticlesId.Any())
-                {
-                    return MapperFacade.ArticleMapper.GetBizList(
-                        QPContext.EFContext.ArticleSet
-                            .Include("Status")
-                            .Include("Content")
-                            .Include("LastModifiedByUser")
-                            .Include("LockedByUser")
-                            .Where(a => variationArticlesId.Contains(a.Id))
-                            .ToList());
-                }
-
-                return new List<Article>();
+                return [];
             }
+
+            var variationArticlesId = Common.GetVariationArticlesIDs(scope.DbConnection, article.Id, article.ContentId, article.Content.VariationField.Name).ToList();
+            if (variationArticlesId.Any())
+            {
+                return QPContext.Map<List<Article>>(
+                    QPContext.EFContext.ArticleSet
+                        .Include("Status")
+                        .Include("Content")
+                        .Include("LastModifiedByUser")
+                        .Include("LockedByUser")
+                        .Where(a => variationArticlesId.Contains(a.Id))
+                        .ToList());
+            }
+
+            return [];
         }
 
         internal static bool IsAnyAggregatedFields(int articleId)
@@ -1389,7 +1348,7 @@ cil.locked_by,
         {
             if (QPContext.IsAdmin)
             {
-                return testValues.ToDictionary(n => n, m => true);
+                return testValues.ToDictionary(n => n, _ => true);
             }
 
             var dict = testValues.ToDictionary(n => n, m => Enumerable.Repeat(m, 1).ToArray());
@@ -1398,257 +1357,204 @@ cil.locked_by,
 
         private static Dictionary<int, bool> CheckRelationSecurity(int contentId, Dictionary<int, int[]> testValues, bool isDeletable)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var testIds = testValues.SelectMany(n => n.Value).Distinct().ToArray();
+            var startLevel = isDeletable ? PermissionLevel.FullAccess : PermissionLevel.Modify;
+            var securityInfo = CommonSecurity.GetRelationSecurityInfo(scope.DbConnection, contentId, testIds);
+            if (securityInfo.IsEmpty)
             {
-                var testIds = testValues.SelectMany(n => n.Value).Distinct().ToArray();
-                var startLevel = isDeletable ? PermissionLevel.FullAccess : PermissionLevel.Modify;
-                var securityInfo = CommonSecurity.GetRelationSecurityInfo(scope.DbConnection, contentId, testIds);
-                if (securityInfo.IsEmpty)
-                {
-                    return testValues.ToDictionary(n => n.Key, m => true);
-                }
-
-                var partResult = new Dictionary<int, bool>();
-                foreach (var currentContentId in securityInfo.ContentIds)
-                {
-                    var currentMapping = securityInfo.GetItemMapping(currentContentId);
-                    var currentIds = currentMapping.Where(n => n.Value != null).SelectMany(n => n.Value).Distinct().ToArray();
-                    var granted = CommonSecurity.CheckArticleSecurity(scope.DbConnection, currentContentId, currentIds, QPContext.CurrentUserId, startLevel);
-                    foreach (var t in currentMapping)
-                    {
-                        if (t.Value != null)
-                        {
-                            var flag = t.Value.All(n => granted[n]);
-                            partResult[t.Key] = partResult.ContainsKey(t.Key) ? partResult[t.Key] && flag : flag;
-                        }
-                    }
-                }
-
-                var contentIdsToCheck = securityInfo.GetContentIdsFromContentMapping();
-                if (contentIdsToCheck.Any())
-                {
-                    var siteId = ContentRepository.GetSiteId(contentId);
-                    var granted = CommonSecurity.CheckContentSecurity(scope.DbConnection, siteId, contentIdsToCheck, QPContext.CurrentUserId, startLevel);
-                    foreach (var t in securityInfo.GetContentMapping())
-                    {
-                        var flag = granted[t.Value];
-                        partResult[t.Key] = partResult.ContainsKey(t.Key) ? partResult[t.Key] && flag : flag;
-                    }
-                }
-
-                return testValues.ToDictionary(n => n.Key, m => m.Value.All(k => partResult[k]));
+                return testValues.ToDictionary(n => n.Key, _ => true);
             }
+
+            var partResult = new Dictionary<int, bool>();
+            foreach (var currentContentId in securityInfo.ContentIds)
+            {
+                var currentMapping = securityInfo.GetItemMapping(currentContentId);
+                var currentIds = currentMapping.Where(n => n.Value != null).SelectMany(n => n.Value).Distinct().ToArray();
+                var granted = CommonSecurity.CheckArticleSecurity(scope.DbConnection, currentContentId, currentIds, QPContext.CurrentUserId, startLevel);
+                foreach (var t in currentMapping)
+                {
+                    if (t.Value != null)
+                    {
+                        var flag = t.Value.All(n => granted[n]);
+                        partResult[t.Key] = partResult.TryGetValue(t.Key, out var value) ? value && flag : flag;
+                    }
+                }
+            }
+
+            var contentIdsToCheck = securityInfo.GetContentIdsFromContentMapping();
+            if (contentIdsToCheck.Any())
+            {
+                var siteId = ContentRepository.GetSiteId(contentId);
+                var granted = CommonSecurity.CheckContentSecurity(scope.DbConnection, siteId, contentIdsToCheck, QPContext.CurrentUserId, startLevel);
+                foreach (var t in securityInfo.GetContentMapping())
+                {
+                    var flag = granted[t.Value];
+                    partResult[t.Key] = partResult.TryGetValue(t.Key, out var value) ? value && flag : flag;
+                }
+            }
+
+            return testValues.ToDictionary(n => n.Key, m => m.Value.All(k => partResult[k]));
         }
 
         internal static Dictionary<int, bool> CheckSecurity(int contentId, int[] testIds, bool isDeletable, bool disableSecurityCheck)
         {
             if (QPContext.IsAdmin || disableSecurityCheck)
             {
-                return testIds.ToDictionary(n => n, m => true);
+                return testIds.ToDictionary(n => n, _ => true);
             }
 
             var startLevel = isDeletable ? PermissionLevel.FullAccess : PermissionLevel.Modify;
-            using (var scope = new QPConnectionScope())
-            {
-                return CommonSecurity.CheckArticleSecurity(scope.DbConnection, contentId, testIds, QPContext.CurrentUserId, startLevel);
-            }
+            using var scope = new QPConnectionScope();
+            return CommonSecurity.CheckArticleSecurity(scope.DbConnection, contentId, testIds, QPContext.CurrentUserId, startLevel);
         }
 
         internal static Dictionary<int, bool> CheckLockedBy(int[] ids)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return CommonSecurity.CheckLockedBy(scope.DbConnection, ids, QPContext.CurrentUserId, QPContext.IsAdmin || QPContext.CanUnlockItems);
-            }
+            using var scope = new QPConnectionScope();
+            return CommonSecurity.CheckLockedBy(scope.DbConnection, ids, QPContext.CurrentUserId, QPContext.IsAdmin || QPContext.CanUnlockItems);
         }
 
         internal static void CopyPermissions(int fromId, int toId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyArticleAccess(scope.DbConnection, fromId, toId, QPContext.CurrentUserId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyArticleAccess(scope.DbConnection, fromId, toId, QPContext.CurrentUserId);
         }
 
         internal static Dictionary<int, int> GetHierarchy(int contentId)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var treeName = ((IContentRepository)new ContentRepository()).GetTreeFieldName(contentId, 0);
+            if (string.IsNullOrEmpty(treeName))
             {
-                var treeName = ((IContentRepository)new ContentRepository()).GetTreeFieldName(contentId, 0);
-                if (string.IsNullOrEmpty(treeName))
-                {
-                    return null;
-                }
-                var content = ContentRepository.GetById(contentId);
-                return Common.GetArticleHierarchy(scope.DbConnection, contentId, treeName, content.UseNativeEfTypes);
+                return null;
             }
+            var content = ContentRepository.GetById(contentId);
+            return Common.GetArticleHierarchy(scope.DbConnection, contentId, treeName, content.UseNativeEfTypes);
         }
 
         internal static List<StatusHistoryListItem> GetStatusHistoryListItems(ListCommand cmd, int articleId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return MapperFacade.StatusHistoryItemMapper.GetBizList(
-                    Common.GetAllHistoryStatusesForArticle(scope.DbConnection, articleId, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, out totalRecords)
-                );
-            }
+            using var scope = new QPConnectionScope();
+            return QPContext.Map<List<StatusHistoryListItem>>(
+                Common.GetAllHistoryStatusesForArticle(scope.DbConnection, articleId, cmd.SortExpression, cmd.StartRecord, cmd.PageSize, out totalRecords)
+            );
         }
 
-        internal static List<DataRow> GetArticlesForExport(int contentId, string extensions, string columns, string filter, int startRow, int pageSize, string orderBy, IEnumerable<ExportSettings.FieldSetting> fieldsToExpand) => GetArticlesForExport(contentId, extensions, columns, filter, startRow, pageSize, orderBy, fieldsToExpand, out int _);
-
-        internal static List<DataRow> GetArticlesForExport(int contentId, string extensions, string columns, string filter, int startRow, int pageSize, string orderBy, IEnumerable<ExportSettings.FieldSetting> fieldsToExpand, out int totalRecords)
+        internal static List<DataRow> GetArticlesForExport(int contentId, string extensions, string columns, string filter, int startRow, int pageSize, string orderBy, IEnumerable<ExportSettings.FieldSetting> fieldsToExpand)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var allExtensions = $"{extensions} {GetExtraFromForRelations(fieldsToExpand)}";
-                return Common.GetArticlesForExport(scope.DbConnection, contentId, allExtensions, columns, filter, startRow, pageSize, orderBy, out totalRecords);
-            }
+            using var scope = new QPConnectionScope();
+            var allExtensions = $"{extensions} {GetExtraFromForRelations(fieldsToExpand)}";
+            return Common.GetArticlesForExport(scope.DbConnection, contentId, allExtensions, columns, filter, startRow, pageSize, orderBy, out _);
         }
 
         internal static List<int> InsertArticleIds(string doc, bool preserveGuids = false)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return CommonCsv.InsertArticleIds(scope.DbConnection, doc, preserveGuids);
-            }
+            using var scope = new QPConnectionScope();
+            return CommonCsv.InsertArticleIds(scope.DbConnection, doc, preserveGuids);
         }
 
         internal static void UpdateArticleGuids(List<Tuple<int, Guid>> guidsByIdToUpdate)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                CommonCsv.UpdateArticleGuids(scope.DbConnection, guidsByIdToUpdate);
-            }
+            using var scope = new QPConnectionScope();
+            CommonCsv.UpdateArticleGuids(scope.DbConnection, guidsByIdToUpdate);
         }
 
         internal static void InsertArticleValues(string xmlParameter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                CommonCsv.InsertArticleValues(scope.DbConnection, xmlParameter);
-            }
+            using var scope = new QPConnectionScope();
+            CommonCsv.InsertArticleValues(scope.DbConnection, xmlParameter);
         }
 
         internal static void ValidateO2MValues(string xmlParameter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                CommonCsv.ValidateO2MValues(scope.DbConnection, xmlParameter, ImportStrings.IncorrectO2M);
-            }
+            using var scope = new QPConnectionScope();
+            CommonCsv.ValidateO2MValues(scope.DbConnection, xmlParameter, ImportStrings.IncorrectO2M);
         }
 
         internal static void UpdateM2MValues(string xmlParameter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.UpdateM2MValues(scope.DbConnection, xmlParameter);
-            }
+            using var scope = new QPConnectionScope();
+            Common.UpdateM2MValues(scope.DbConnection, xmlParameter);
         }
 
         internal static List<int> CheckForArticleExistence(List<int> relatedIds, string condition, int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.CheckForArticlesExistence(scope.DbConnection, relatedIds, condition, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.CheckForArticlesExistence(scope.DbConnection, relatedIds, condition, contentId);
         }
 
         internal static Dictionary<string, int> GetExistingArticleIdsMap(List<string> values, string fieldName, string condition, int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetExistingArticleIdsMap(scope.DbConnection, values, fieldName, condition, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetExistingArticleIdsMap(scope.DbConnection, values, fieldName, condition, contentId);
         }
 
         internal static void UpdateArticlesDateTime(string xmlParameter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-
-                CommonCsv.UpdateArticlesDateTime(scope.DbConnection, xmlParameter);
-            }
+            using var scope = new QPConnectionScope();
+            CommonCsv.UpdateArticlesDateTime(scope.DbConnection, xmlParameter);
         }
 
         internal static void RemoveLinksFromM2MField(int linkId, List<int> articleIds)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveLinksFromM2MField(scope.DbConnection, linkId, articleIds);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveLinksFromM2MField(scope.DbConnection, linkId, articleIds);
         }
 
         internal static void InsertO2MFieldValues(string xmlParameter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                CommonCsv.InsertO2MFieldValues(scope.DbConnection, xmlParameter);
-            }
+            using var scope = new QPConnectionScope();
+            CommonCsv.InsertO2MFieldValues(scope.DbConnection, xmlParameter);
         }
 
         internal static Dictionary<string, List<string>> GetM2MValuesBatch(List<int> ids, int linkId, string displayFieldName, int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetM2MValuesBatch(scope.DbConnection, ids, linkId, Default.MaxViewInListArticleNumber + 1, displayFieldName, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetM2MValuesBatch(scope.DbConnection, ids, linkId, Default.MaxViewInListArticleNumber + 1, displayFieldName, contentId);
         }
 
         internal static Dictionary<string, List<string>> GetM2OValuesBatch(List<int> ids, int contentId, int fieldId, string fieldName, string displayFieldName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetM2OValuesBatch(scope.DbConnection, contentId, fieldId, fieldName, ids, displayFieldName, Default.MaxViewInListArticleNumber);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetM2OValuesBatch(scope.DbConnection, contentId, fieldId, fieldName, ids, displayFieldName, Default.MaxViewInListArticleNumber);
         }
 
         internal static Dictionary<Tuple<int, int>, List<int>> GetM2OValues(List<int> ids, int contentId, int fieldId, string fieldName, string displayFieldName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetM2OValues(scope.DbConnection, contentId, fieldId, fieldName, ids, displayFieldName, Default.MaxViewInListArticleNumber);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetM2OValues(scope.DbConnection, contentId, fieldId, fieldName, ids, displayFieldName, Default.MaxViewInListArticleNumber);
         }
 
         internal static int[] SortIdsByFieldName(int[] ids, int contentId, string fieldName, bool isArchive = false)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.SortIdsByFieldName(scope.DbConnection, ids, contentId, fieldName, isArchive);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.SortIdsByFieldName(scope.DbConnection, ids, contentId, fieldName, isArchive);
         }
 
         internal static IList<int> GetParentIds(IList<int> ids, int fieldId, string fieldName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var contentId = FieldRepository.GetById(fieldId)?.ContentId;
-                return Common.GetParentIdsTreeResult(scope.DbConnection, ids, fieldId, fieldName, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            var contentId = FieldRepository.GetById(fieldId)?.ContentId;
+            return Common.GetParentIdsTreeResult(scope.DbConnection, ids, fieldId, fieldName, contentId);
         }
 
         internal static IList<int> GetChildArticles(IList<int> ids, string fieldName, int contentId, string filter)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetChildArticles(scope.DbConnection, ids, fieldName, contentId, filter);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetChildArticles(scope.DbConnection, ids, fieldName, contentId, filter);
         }
 
         internal static int GetArticleIdForCollaborativePublication(int childId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetArticleIdForCollaborativePublication(scope.DbConnection, childId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetArticleIdForCollaborativePublication(scope.DbConnection, childId);
         }
 
         internal static int GetContentIdForArticle(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return (int)Common.GetContentIdForArticle(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            return (int)Common.GetContentIdForArticle(scope.DbConnection, id);
         }
 
         #region BatchUpdate
@@ -1679,13 +1585,13 @@ cil.locked_by,
             }
 
             var rows = CommonBatchUpdate.GetRelations(scope.DbConnection, GetBatchDataTable(model.Articles));
-            var relations = MapperFacade.DataRowMapper.Map<RelationData>(rows);
+            var relations = QPContext.Map<RelationData[]>(rows).ToArray();
 
             var links = GetArticleLinks(model.Articles, relations);
             model.Articles = UpdateArticleRelations(model.Articles, relations);
 
             rows = CommonBatchUpdate.BatchInsert(scope.DbConnection, GetBatchDataTable(model.Articles), true, QPContext.CurrentUserId);
-            var insertData = MapperFacade.DataRowMapper.Map<InsertData>(rows);
+            var insertData = QPContext.Map<InsertData[]>(rows);
 
             if (model.CreateVersions)
             {
@@ -1694,11 +1600,11 @@ cil.locked_by,
                     .ToArray();
 
                 var versionsToDelete = ArticleVersionRepository.GetVersionsToDelete(updatedIds);
-                var contents = versionsToDelete.Values.Distinct().ToDictionary(k => k, v => ContentRepository.GetById(v));
+                var contents = versionsToDelete.Values.Distinct().ToDictionary(k => k, ContentRepository.GetById);
                 DeleteVersionFolders(versionsToDelete, contents, model.PathHelper);
                 Common.CreateArticleVersions(scope.DbConnection, QPContext.CurrentUserId, updatedIds);
                 var newVersions = ArticleVersionRepository.GetLatestVersions(updatedIds);
-                var newContents = newVersions.Values.Distinct().ToDictionary(k => k, v => ContentRepository.GetById(v));
+                var newContents = newVersions.Values.Distinct().ToDictionary(k => k, ContentRepository.GetById);
                 CreateVersionFolders(newVersions, newContents, model.PathHelper);
             }
 
@@ -1802,7 +1708,7 @@ cil.locked_by,
 
         private static LinkData[] GetArticleLinks(IEnumerable<ArticleData> articles, IEnumerable<RelationData> relations) => (from a in articles
                                                                                                                               from f in a.Fields
-                                                                                                                              from linkedItemId in f.ArticleIds != null && f.ArticleIds.Any() ? f.ArticleIds : new[] { 0 }
+                                                                                                                              from linkedItemId in f.ArticleIds != null && f.ArticleIds.Any() ? f.ArticleIds : [0]
                                                                                                                               join r in relations on f.Id equals r.FieldId
                                                                                                                               where r.LinkId.HasValue
                                                                                                                               select new LinkData
@@ -1810,7 +1716,7 @@ cil.locked_by,
                                                                                                                                   // ReSharper disable once PossibleInvalidOperationException
                                                                                                                                   LinkId = r.LinkId.Value,
                                                                                                                                   ItemId = a.Id,
-                                                                                                                                  LinkedItemId = linkedItemId != 0 ? linkedItemId : (int?)null
+                                                                                                                                  LinkedItemId = linkedItemId != 0 ? linkedItemId : null
                                                                                                                               })
             .ToArray();
 
@@ -1879,7 +1785,7 @@ cil.locked_by,
                                 backArticle.Fields.Add(field);
                             }
 
-                            field.ArticleIds = new[] { item.article.Id };
+                            field.ArticleIds = [item.article.Id];
                             field.Value = item.article.Id.ToString();
                         }
                     }
@@ -1952,7 +1858,7 @@ cil.locked_by,
                 itemXml.Add(new XAttribute("id", group.Key.ItemId));
                 itemXml.Add(new XAttribute("linkId", group.Key.LinkId));
                 itemXml.Add(new XAttribute("value", string.Join(",", group.Select(l => l.LinkedItemId?.ToString() ?? string.Empty).Distinct().ToArray())));
-                doc.Root.Add(itemXml);
+                doc.Root?.Add(itemXml);
             }
 
             return doc.ToString(SaveOptions.None);
@@ -1960,28 +1866,22 @@ cil.locked_by,
 
         public int[] GetIdsByGuids(Guid[] guids)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetArticleIdsByGuids(scope.DbConnection, guids);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetArticleIdsByGuids(scope.DbConnection, guids);
         }
 
         public Guid[] GetGuidsByIds(int[] ids)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetArticleGuidsByIds(scope.DbConnection, ids);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetArticleGuidsByIds(scope.DbConnection, ids);
         }
 
         #endregion
 
         public static int[] GetArticleIdsWithWrongStatuses(int[] idsList, int[] statusList)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetArticleIdsWithWrongStatuses(scope.DbConnection, idsList, statusList);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetArticleIdsWithWrongStatuses(scope.DbConnection, idsList, statusList);
         }
     }
 }

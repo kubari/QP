@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Quantumart.QP8.BLL.Facades;
 
 namespace Quantumart.QP8.BLL.Repository.EntityPermissions
 {
@@ -9,7 +7,7 @@ namespace Quantumart.QP8.BLL.Repository.EntityPermissions
     {
         internal static IEnumerable<EntityPermissionLevel> GetPermissionLevels()
         {
-            return MapperFacade.EntityPermissionLevelMapper.GetBizList(
+            return QPContext.Map<EntityPermissionLevel[]>(
                 QPContext.EFContext.PermissionLevelSet.OrderByDescending(p => p.Level).ToList()
             );
         }

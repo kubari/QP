@@ -345,7 +345,7 @@ namespace Quantumart.QP8.BLL.Services
 
             page.MutatePage();
             ManagePageFolders(page, FolderManagingType.CreateFolder);
-            var newId = PageRepository.CopyPage(page, QPContext.CurrentUserId);
+            var newId = PageRepository.CopyPage(page);
             if (newId == 0)
             {
                 result.Message = MessageResult.Error(TemplateStrings.PageNotCreated);

@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
-using System.Data.SqlClient;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using Microsoft.Data.SqlClient;
 using Npgsql;
 using Quantumart.QP8.BLL.Exceptions;
 using Quantumart.QP8.BLL.Repository;
@@ -15,7 +14,6 @@ using Quantumart.QP8.BLL.Services.DTO;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.Resources;
 using Quantumart.QP8.Utils;
-using Quantumart.QPublishing.Database;
 
 namespace Quantumart.QP8.BLL.Helpers
 {
@@ -44,13 +42,13 @@ namespace Quantumart.QP8.BLL.Helpers
 
         private class UpdateFieldCollectionOperationParams
         {
-            public IEnumerable<Field> NewStateRemainingFields { get; set; }
+            public IEnumerable<Field> NewStateRemainingFields { get; init; }
 
-            public IEnumerable<Field> NewFieldsToAdd { get; set; }
+            public IEnumerable<Field> NewFieldsToAdd { get; init; }
 
-            public IEnumerable<Field> FieldsToRemove { get; set; }
+            public IEnumerable<Field> FieldsToRemove { get; init; }
 
-            public IEnumerable<Field> FieldsToRemain { get; set; }
+            public IEnumerable<Field> FieldsToRemain { get; init; }
         }
 
         /// <summary>
@@ -240,7 +238,7 @@ namespace Quantumart.QP8.BLL.Helpers
                         case ValidFieldColumnDbTypes.SmallInt:
                         case ValidFieldColumnDbTypes.TinyInt:
                             vField.TypeId = FieldTypeCodes.Numeric;
-                            vField.DecimalPlaces = column.DecimalPlaces.Value;
+                            vField.DecimalPlaces = column.DecimalPlaces ?? 0;
                             break;
                         case ValidFieldColumnDbTypes.Datetime:
                         case ValidFieldColumnDbTypes.TimeStampWithTimeZone:
@@ -401,7 +399,7 @@ namespace Quantumart.QP8.BLL.Helpers
             var rootFields = FieldRepository.GetList(virtualContent.VirtualJoinFieldNodes.Select(n => n.Id));
 
             // получить id базовых полей для полей верхнего уровня дочернего join-контента
-            var rootBaseFieldIDs = rootFields.Select(f => f.PersistentId.Value).Distinct();
+            var rootBaseFieldIDs = rootFields.Select(f => f.PersistentId ?? 0).Distinct();
 
             // --- добавить в дочерний join-контент на первый уровень те поля, которых там нет, но которые добавлены в родительский контент ---
             // получить id новых базовых полей на основе которых нужно создать виртуальные поля верхнего уровня в дочернем join-контенте
@@ -451,9 +449,9 @@ namespace Quantumart.QP8.BLL.Helpers
             // (тут не нужен проход по иерархии виртуальных полей , так как значимые параметры полей типа O2M нельзя менять если на таких полях построены виртуальные поля)
             foreach (var vfield in relatedContent.Fields)
             {
-                if (rootPersintentField.ContainsKey(vfield.PersistentId.Value))
+                if (rootPersintentField.ContainsKey(vfield.PersistentId ?? 0))
                 {
-                    var pfield = rootPersintentField[vfield.PersistentId.Value];
+                    var pfield = rootPersintentField[vfield.PersistentId ?? 0];
                     var isChanged = false;
 
                     // ---- Проверка на изменение имени ---
@@ -1107,9 +1105,9 @@ namespace Quantumart.QP8.BLL.Helpers
                 DropContentViews(content);
 
                 // сначала удалить поля в подчиненных контентах
-                var rebuildedSubContentViews = RemoveSubContentVirtualFields(content, Except(Enumerable.Empty<Content.VirtualFieldNode>(), dbContentVersion.VirtualJoinFieldNodes).ToList());
+                var rebuildedSubContentViews = RemoveSubContentVirtualFields(content, Except([], dbContentVersion.VirtualJoinFieldNodes).ToList());
                 RebuildSubContentViews(GetVirtualContentsToRebuild(rebuildedSubContentViews.ToArray()));
-                RemoveJoinContentFields(Enumerable.Empty<Content.VirtualFieldNode>(), dbContentVersion.VirtualJoinFieldNodes);
+                RemoveJoinContentFields([], dbContentVersion.VirtualJoinFieldNodes);
             }
             else if (content.StoredVirtualType == VirtualType.Union)
             {
@@ -1176,9 +1174,9 @@ namespace Quantumart.QP8.BLL.Helpers
             {
                 foreach (var node in nodes)
                 {
-                    if (contentFieldsDictionary.ContainsKey(node.Id))
+                    if (contentFieldsDictionary.TryGetValue(node.Id, out var value))
                     {
-                        var contentFieldPersistentId = contentFieldsDictionary[node.Id].PersistentId;
+                        var contentFieldPersistentId = value.PersistentId;
                         if (contentFieldPersistentId.HasValue && removingPersistentFieldIdsHashset.Contains(contentFieldPersistentId.Value))
                         {
                             // добавляем в удаляемые
@@ -1349,8 +1347,8 @@ namespace Quantumart.QP8.BLL.Helpers
             if (newContent.VirtualType == VirtualType.Join)
             {
                 var vfData = VirtualContentRepository.GetJoinFieldData(newContent.Id).ToList();
-                var viewCreateDdl = GenerateCreateJoinViewDdl(newContent.Id, newContent.JoinRootId.Value, vfData);
-                var asyncViewCreateDdl = GenerateCreateJoinAsyncViewDdl(newContent.Id, newContent.JoinRootId.Value, vfData);
+                var viewCreateDdl = GenerateCreateJoinViewDdl(newContent.Id, newContent.JoinRootId ?? 0, vfData);
+                var asyncViewCreateDdl = GenerateCreateJoinAsyncViewDdl(newContent.Id, newContent.JoinRootId ?? 0, vfData);
                 VirtualContentRepository.RunCreateViewDdl(viewCreateDdl);
                 VirtualContentRepository.RunCreateViewDdl(asyncViewCreateDdl);
                 VirtualContentRepository.CreateUnitedView(newContent.Id);
@@ -1392,9 +1390,8 @@ namespace Quantumart.QP8.BLL.Helpers
         private static string GenerateCreateJoinViewDdl(int virtualContentId, int joinRootContentId, List<VirtualFieldData> virtualFieldsData, string viewNameTemplate, string joinTableNameTemplate, string rootContentNameTemplate)
         {
             var dbType = QPContext.DatabaseType;
-            var schema = DAL.SqlQuerySyntaxHelper.DbSchemaName(dbType);
             var withNolock = DAL.SqlQuerySyntaxHelper.WithNoLock(dbType);
-            Func<string, string> escape = (string name) => DAL.SqlQuerySyntaxHelper.EscapeEntityName(dbType, name);
+            string Escape(string name) => DAL.SqlQuerySyntaxHelper.EscapeEntityName(dbType, name);
 
             const string joinRootTableAlias = "c_0";
             var selectBlock = new StringBuilder();
@@ -1409,13 +1406,13 @@ namespace Quantumart.QP8.BLL.Helpers
                 void Traverse(string parentTableAlias, VirtualFieldData parentFieldData, int i)
                 {
                     var cfTableAlias = string.Concat(parentTableAlias, '_', i);
-                    fromBlock.Append("LEFT OUTER JOIN ").AppendFormat(joinTableNameTemplate, parentFieldData.RelateToPersistentContentId).AppendFormat("AS {0} {3} ON {0}.CONTENT_ITEM_ID = {1}.{2} ", cfTableAlias, parentTableAlias, escape(parentFieldData.PersistentName), withNolock);
+                    fromBlock.Append("LEFT OUTER JOIN ").AppendFormat(joinTableNameTemplate, parentFieldData.RelateToPersistentContentId).AppendFormat("AS {0} {3} ON {0}.CONTENT_ITEM_ID = {1}.{2} ", cfTableAlias, parentTableAlias, Escape(parentFieldData.PersistentName), withNolock);
 
                     //fromBlock.AppendFormat("LEFT OUTER JOIN dbo.CONTENT_{0} AS {1} WITH (nolock) ON {1}.CONTENT_ITEM_ID = {2}.{3} ", parentFieldData.RelateToPersistentContentId, cfTableAlias, parentTableAlias, parentFieldData.PersistentName);
                     var c = 0;
                     foreach (var cf in virtualFieldsData.Where(f => f.JoinId == parentFieldData.Id))
                     {
-                        selectBlock.AppendFormat("{0}.{1} as {2},", cfTableAlias, escape(cf.PersistentName), escape(cf.Name));
+                        selectBlock.AppendFormat("{0}.{1} as {2},", cfTableAlias, Escape(cf.PersistentName), Escape(cf.Name));
 
                         if (cf.Type == FieldTypeCodes.Relation && cf.RelateToPersistentContentId.HasValue)
                         {
@@ -1429,7 +1426,7 @@ namespace Quantumart.QP8.BLL.Helpers
                 var rc = 0;
                 foreach (var rf in virtualFieldsData.Where(d => !d.JoinId.HasValue))
                 {
-                    selectBlock.AppendFormat("{0}.{1} as {2},", joinRootTableAlias, escape(rf.PersistentName), escape(rf.Name));
+                    selectBlock.AppendFormat("{0}.{1} as {2},", joinRootTableAlias, Escape(rf.PersistentName), Escape(rf.Name));
 
                     if (rf.Type == FieldTypeCodes.Relation && rf.RelateToPersistentContentId.HasValue)
                     {
@@ -1481,9 +1478,6 @@ namespace Quantumart.QP8.BLL.Helpers
         private static string GenerateCreateUnionViewDdl(int contentId, IReadOnlyCollection<int> unionSourceContentIds, IReadOnlyCollection<string> contentFieldNames, IReadOnlyDictionary<string, HashSet<int>> fieldNameInSourceContents, string viewNameTemplate, string sourceTableNameTemplate)
         {
             var dbType = QPContext.DatabaseType;
-            var schema = DAL.SqlQuerySyntaxHelper.DbSchemaName(dbType);
-            var withNolock = DAL.SqlQuerySyntaxHelper.WithNoLock(dbType);
-            Func<string, string> escape = (string name) => DAL.SqlQuerySyntaxHelper.EscapeEntityName(dbType, name);
             var sb = new StringBuilder();
             sb.AppendFormat(viewNameTemplate, contentId);
 
@@ -1494,7 +1488,7 @@ namespace Quantumart.QP8.BLL.Helpers
                 var j = contentFieldNames.Count;
                 foreach (var fname in contentFieldNames)
                 {
-                    sb.AppendFormat(fieldNameInSourceContents[fname].Contains(usId) ? "{0} {0}" : "NULL {0}", escape(fname));
+                    sb.AppendFormat(fieldNameInSourceContents[fname].Contains(usId) ? "{0} {0}" : "NULL {0}", Escape(fname));
 
                     j--;
                     if (j > 0)
@@ -1515,6 +1509,8 @@ namespace Quantumart.QP8.BLL.Helpers
             }
 
             return sb.ToString();
+
+            string Escape(string name) => DAL.SqlQuerySyntaxHelper.EscapeEntityName(dbType, name);
         }
 
         private static void CreateUserQueryViews(Content content)
@@ -1549,11 +1545,11 @@ namespace Quantumart.QP8.BLL.Helpers
         /// <summary>
         /// Возвращает имена всех View которые создаються для виртуального контента
         /// </summary>
-        internal IEnumerable<string> GetVirtualContentAllViewNames(int contentId)
+        private IEnumerable<string> GetVirtualContentAllViewNames(int contentId)
         {
             var contentIdString = contentId.ToString();
-            return new[]
-            {
+            return
+            [
                 "content_" + contentIdString + "_live",
                 "content_" + contentIdString + "_stage",
                 "content_" + contentIdString + "_united",
@@ -1564,7 +1560,7 @@ namespace Quantumart.QP8.BLL.Helpers
                 "content_" + contentIdString + "_united_new",
                 "content_" + contentIdString + "_async_new",
                 "content_" + contentIdString + "_new"
-            };
+            ];
         }
 
         /// <summary>
@@ -1581,7 +1577,7 @@ namespace Quantumart.QP8.BLL.Helpers
         /// <summary>
         /// Refresh view контента
         /// </summary>
-        internal void RefreshContentViews(Content content)
+        private void RefreshContentViews(Content content)
         {
             foreach (var viewName in GetVirtualContentAllViewNames(content.Id).Where(n => !n.Contains("async")).Reverse())
             {
@@ -1610,7 +1606,7 @@ namespace Quantumart.QP8.BLL.Helpers
                 return uniqueItems.OrderBy(c => c.Level).Select(c => c.ContentId).Select(n => updatedContentsDict[n]).ToArray();
             }
 
-            return new Content[] { };
+            return [];
         }
 
         public void RebuildSubContentView(Content content)
@@ -1771,7 +1767,7 @@ namespace Quantumart.QP8.BLL.Helpers
             var virtualFieldsWithChangedName = new List<Field>();
 
             // получить реальные поля для виртуальных полей контента
-            var persistentFiedIDs = subContent.Fields.Select(f => f.PersistentId.Value).Distinct();
+            var persistentFiedIDs = subContent.Fields.Select(f => f.PersistentId ?? 0).Distinct();
             var persistentFieds = FieldRepository.GetList(persistentFiedIDs).ToDictionary(f => f.Id);
 
             // Определить у каких полей дочернего Join-контента имя было изменено
@@ -1789,7 +1785,7 @@ namespace Quantumart.QP8.BLL.Helpers
                     {
                         if (f.ExactType == FieldExactTypes.O2MRelation)
                         {
-                            f.Name = persistentFieds[f.PersistentId.Value].Name;
+                            f.Name = persistentFieds[f.PersistentId ?? 0].Name;
                             JoinFieldsTraverse(f, subContent.Fields.Where(cf => cf.JoinId == f.Id).ToList());
                         }
                     }
@@ -1799,7 +1795,7 @@ namespace Quantumart.QP8.BLL.Helpers
                     foreach (var f in fields)
                     {
                         // сгенерить имя поля
-                        var generatedName = string.Concat(o2mField.Name, '.', persistentFieds[f.PersistentId.Value].Name);
+                        var generatedName = string.Concat(o2mField.Name, '.', persistentFieds[f.PersistentId ?? 0].Name);
 
                         // Если сгенеренное имя и реальное имя поля не совпадают, то имя поля было изменено пользователем
                         // добавляем его в коллекцию на основании которой будем проводить валидацию
@@ -1841,7 +1837,7 @@ namespace Quantumart.QP8.BLL.Helpers
             }
             else
             {
-                content = ContentRepository.GetById(query.JoinedContentId.Value);
+                content = ContentRepository.GetById(query.JoinedContentId ?? 0);
             }
 
             IEnumerable<EntityTreeItem> GetChildren(Field f, string eid, string alias)
@@ -1852,7 +1848,7 @@ namespace Quantumart.QP8.BLL.Helpers
                     return GetChildFieldList(eid, alias, GetChildren);
                 }
 
-                return Enumerable.Empty<EntityTreeItem>();
+                return [];
             }
 
             return content.Fields
@@ -1898,11 +1894,11 @@ namespace Quantumart.QP8.BLL.Helpers
                 }
 
                 // получить id реальных полей для которых уже получены виртуальные поля
-                var joinedFieldPersistentIDs = new HashSet<int>(fieldSelect.Select(f => f.PersistentId.Value).ToArray());
+                var joinedFieldPersistentIDs = new HashSet<int>(fieldSelect.Select(f => f.PersistentId ?? 0).ToArray());
 
                 // добавить только те реальные поля, для которых нет виртуальных
                 fieldSelect = fieldSelect.Concat(
-                    ContentRepository.GetById(field.RelateToContentId.Value).Fields
+                    ContentRepository.GetById(field.RelateToContentId ?? 0).Fields
                         .Where(f => f.ExactType != FieldExactTypes.M2MRelation && f.ExactType != FieldExactTypes.M2ORelation)
                         .Where(f => !joinedFieldPersistentIDs.Contains(f.Id)
                         )

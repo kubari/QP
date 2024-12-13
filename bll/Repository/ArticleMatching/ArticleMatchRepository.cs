@@ -4,10 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Xml.Linq;
 using System.Xml.Serialization;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository.ArticleMatching.Conditions;
 using Quantumart.QP8.BLL.Repository.ArticleMatching.Models;
-using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 
 namespace Quantumart.QP8.BLL.Repository.ArticleMatching
@@ -71,7 +69,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleMatching
             using (new QPConnectionScope())
             {
                 var rows = Common.MatchArticles(QPConnectionScope.Current.DbConnection, parameters, query);
-                return MapperFacade.DataRowMapper.Map<ArticleInfo>(rows);
+                return QPContext.Map<ArticleInfo[]>(rows);
             }
         }
 
@@ -82,7 +80,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleMatching
             using (new QPConnectionScope())
             {
                 var rows = Common.MatchContents(QPConnectionScope.Current.DbConnection, contentIds, fieldsDoc);
-                return MapperFacade.DataRowMapper.Map<SchemaInfo>(rows);
+                return QPContext.Map<SchemaInfo[]>(rows);
             }
         }
 

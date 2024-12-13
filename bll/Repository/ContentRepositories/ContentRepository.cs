@@ -8,7 +8,6 @@ using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using QP8.Plugins.Contract;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.FieldRepositories;
@@ -65,7 +64,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                 .Where(x => x.ContentId == contentId)
                 .ToList();
 
-            return MapperFacade.FieldMapper.GetBizList(dbFields).Where(x => x.FieldPriority(withRelations) >= 0).ToList();
+            return QPContext.Map<List<Field>>(dbFields).Where(x => x.FieldPriority(withRelations) >= 0).ToList();
         }
 
         void IContentRepository.ChangeRelationIdToNewOne(int currentRelationFieldId, int newRelationFieldId)
@@ -97,12 +96,12 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         private ContentToContentDAL GetDal(ContentLink bll)
         {
-            return MapperFacade.ContentLinkMapper.GetDalObject(bll);
+            return QPContext.Map<ContentToContentDAL>(bll);
         }
 
         private ContentLink GetBll(ContentToContentDAL dal)
         {
-            return MapperFacade.ContentLinkMapper.GetBizObject(dal);
+            return QPContext.Map<ContentLink>(dal);
         }
 
         ContentLink IContentRepository.SaveLink(ContentLink link)
@@ -112,38 +111,36 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
             {
                 link.LinkId = link.ForceLinkId;
             }
-            using (var scope = new QPConnectionScope())
+
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.ContentLink);
-                        FieldRepository.ChangeInsertContentLinkTriggerState(scope.DbConnection, false);
-                    }
-
-                    var resultDal = DefaultRepository.SimpleSave(GetDal(link));
-                    var result = GetBll(resultDal);
-                    if (QPContext.DatabaseType == DatabaseType.Postgres)
-                    {
-                        Common.CreateLinkTables(scope.DbConnection, resultDal);
-                    }
-                    Common.CreateLinkView(scope.DbConnection, resultDal);
-
-                    result.WasNew = true;
-                    return result;
-
+                    DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.ContentLink);
+                    FieldRepository.ChangeInsertContentLinkTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                var resultDal = DefaultRepository.SimpleSave(GetDal(link));
+                var result = GetBll(resultDal);
+                if (QPContext.DatabaseType == DatabaseType.Postgres)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.ContentLink);
-                        FieldRepository.ChangeInsertContentLinkTriggerState(scope.DbConnection, true);
-                    }
+                    Common.CreateLinkTables(scope.DbConnection, resultDal);
+                }
+                Common.CreateLinkView(scope.DbConnection, resultDal);
+
+                result.WasNew = true;
+                return result;
+
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.ContentLink);
+                    FieldRepository.ChangeInsertContentLinkTriggerState(scope.DbConnection, true);
                 }
             }
-
         }
 
         ContentLink IContentRepository.UpdateLink(ContentLink link)
@@ -155,34 +152,32 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static Content GetById(int id)
         {
-            return GetByIdFromCache(id) ?? MapperFacade.ContentMapper.GetBizObject(QPContext.EFContext.ContentSet.Include("LastModifiedByUser").SingleOrDefault(n => n.Id == id));
+            return GetByIdFromCache(id) ?? QPContext.Map<Content>(QPContext.EFContext.ContentSet.Include("LastModifiedByUser").SingleOrDefault(n => n.Id == id));
         }
 
         internal static ListResult<ContentListItem> GetList(ContentListFilter filter, ListCommand cmd, int[] selectedContentIDs = null, int workflowId = 0)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var options = new ContentPageOptions
             {
-                var options = new ContentPageOptions
-                {
-                    ContentName = filter.ContentName,
-                    SiteId = filter.SiteId,
-                    IsVirtual = filter.IsVirtual,
-                    GroupId = filter.GroupId,
-                    Mode = filter.Mode,
-                    SelectedIDs = selectedContentIDs,
-                    UserId = QPContext.CurrentUserId,
-                    UseSecurity = !QPContext.IsAdmin,
-                    IsAdmin = QPContext.IsAdmin,
-                    SortExpression = cmd.SortExpression,
-                    StartRecord = cmd.StartRecord,
-                    PageSize = cmd.PageSize,
-                    LanguageId = QPContext.CurrentLanguageId,
-                    CustomFilter = MapperFacade.CustomFilterMapper.GetDalList(filter?.CustomFilter?.ToList()).ToArray()
-                };
+                ContentName = filter.ContentName,
+                SiteId = filter.SiteId,
+                IsVirtual = filter.IsVirtual,
+                GroupId = filter.GroupId,
+                Mode = filter.Mode,
+                SelectedIDs = selectedContentIDs,
+                UserId = QPContext.CurrentUserId,
+                UseSecurity = !QPContext.IsAdmin,
+                IsAdmin = QPContext.IsAdmin,
+                SortExpression = cmd.SortExpression,
+                StartRecord = cmd.StartRecord,
+                PageSize = cmd.PageSize,
+                LanguageId = QPContext.CurrentLanguageId,
+                CustomFilter = QPContext.Map<CustomFilter[]>(filter.CustomFilter?.ToList())
+            };
 
-                var rows = Common.GetContentsPage(scope.DbConnection, options, out var totalRecords);
-                return new ListResult<ContentListItem> { Data = MapperFacade.ContentListItemRowMapper.GetBizList(rows.ToList()), TotalRecords = totalRecords };
-            }
+            var rows = Common.GetContentsPage(scope.DbConnection, options, out var totalRecords);
+            return new ListResult<ContentListItem> { Data = QPContext.Map<List<ContentListItem>>(rows.ToList()), TotalRecords = totalRecords };
         }
 
         [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]
@@ -202,17 +197,17 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                 }
 
                 var decIds = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-                return MapperFacade.ContentMapper.GetBizList(context.Where(c => decIds.Contains(c.Id)).ToList());
+                return QPContext.Map<Content[]>(context.Where(c => decIds.Contains(c.Id)).ToList());
             }
 
-            return Enumerable.Empty<Content>();
+            return [];
         }
 
-        internal static IEnumerable<Content> GetAll() => MapperFacade.ContentMapper.GetBizList(QPContext.EFContext.ContentSet.ToList());
+        internal static IEnumerable<Content> GetAll() => QPContext.Map<Content[]>(QPContext.EFContext.ContentSet.ToList());
 
         internal static IEnumerable<Content> GetListBySiteId(int siteId)
         {
-            return MapperFacade.ContentMapper.GetBizList(QPContext.EFContext.ContentSet.Include("WorkflowBinding").Where(c => c.SiteId == siteId).ToList());
+            return QPContext.Map<Content[]>(QPContext.EFContext.ContentSet.Include("WorkflowBinding").Where(c => c.SiteId == siteId).ToList());
         }
 
         internal static IEnumerable<ListItem> GetSimpleList(int currentSiteId, int id)
@@ -234,9 +229,9 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
         {
             Content result = null;
             var cache = QPContext.GetContentCache();
-            if (cache != null && cache.ContainsKey(id))
+            if (cache != null && cache.TryGetValue(id, out var value))
             {
-                result = cache[id];
+                result = value;
             }
 
             return result;
@@ -244,12 +239,12 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static Content GetByIdWithFields(int id)
         {
-            return MapperFacade.ContentMapper.GetBizObject(QPContext.EFContext.ContentSet.Include("LastModifiedByUser").Include("Fields").SingleOrDefault(n => n.Id == id));
+            return QPContext.Map<Content>(QPContext.EFContext.ContentSet.Include("LastModifiedByUser").Include("Fields").SingleOrDefault(n => n.Id == id));
         }
 
         internal static int GetSiteId(int id)
         {
-            return (int)QPContext.EFContext.ContentSet.Where(n => n.Id == (decimal)id).Select(n => n.SiteId).Single();
+            return (int)QPContext.EFContext.ContentSet.Where(n => n.Id == id).Select(n => n.SiteId).Single();
         }
 
         private static void ChangeCreateFieldsTriggerState(DbConnection cnn, bool enable)
@@ -279,51 +274,49 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static Content Save(Content content, bool createDefaultField)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeCreateFieldsTriggerState(scope.DbConnection, false);
-                        ChangeInsertAccessContentTriggerState(scope.DbConnection, false);
-                        ChangeInsertModificationTriggerState(scope.DbConnection, false);
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
-                        DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Content, content);
-                    }
-
-                    var binding = content.WorkflowBinding;
-                    var fieldValues = content.QpPluginFieldValues;
-                    var newContent = DefaultRepository.Save<Content, ContentDAL>(content);
-
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Content);
-                    }
-                    Common.CreateContentTables(scope.DbConnection, newContent.Id, newContent.UseNativeEfTypes);
-                    Common.CreateContentModification(scope.DbConnection, newContent.Id);
-                    CommonSecurity.CreateContentAccess(scope.DbConnection, newContent.Id);
-
-                    if (createDefaultField)
-                    {
-                        CreateDefaultField(newContent, content.ForceFieldIds); // implicitly create views
-                    }
-
-                    binding.SetContent(newContent);
-                    WorkflowRepository.UpdateContentWorkflowBind(binding);
-                    UpdatePluginValues(fieldValues, newContent.Id);
-                    return GetById(newContent.Id);
+                    ChangeCreateFieldsTriggerState(scope.DbConnection, false);
+                    ChangeInsertAccessContentTriggerState(scope.DbConnection, false);
+                    ChangeInsertModificationTriggerState(scope.DbConnection, false);
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
+                    DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Content, content);
                 }
-                finally
+
+                var binding = content.WorkflowBinding;
+                var fieldValues = content.QpPluginFieldValues;
+                var newContent = DefaultRepository.Save<Content, ContentDAL>(content);
+
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Content);
-                        ChangeCreateFieldsTriggerState(scope.DbConnection, true);
-                        ChangeInsertAccessContentTriggerState(scope.DbConnection, true);
-                        ChangeInsertModificationTriggerState(scope.DbConnection, true);
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
-                    }
+                    DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Content);
+                }
+                Common.CreateContentTables(scope.DbConnection, newContent.Id, newContent.UseNativeEfTypes);
+                Common.CreateContentModification(scope.DbConnection, newContent.Id);
+                CommonSecurity.CreateContentAccess(scope.DbConnection, newContent.Id);
+
+                if (createDefaultField)
+                {
+                    CreateDefaultField(newContent, content.ForceFieldIds); // implicitly create views
+                }
+
+                binding.SetContent(newContent);
+                WorkflowRepository.UpdateContentWorkflowBind(binding);
+                UpdatePluginValues(fieldValues, newContent.Id);
+                return GetById(newContent.Id);
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Content);
+                    ChangeCreateFieldsTriggerState(scope.DbConnection, true);
+                    ChangeInsertAccessContentTriggerState(scope.DbConnection, true);
+                    ChangeInsertModificationTriggerState(scope.DbConnection, true);
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
                 }
             }
         }
@@ -338,7 +331,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
             field.ViewInList = true;
             field.StringSize = 255;
             field.Order = 1;
-            if (forceFieldIds != null && forceFieldIds.Count > 0)
+            if (forceFieldIds is { Count: > 0 })
             {
                 field.ForceId = forceFieldIds[0];
             }
@@ -363,97 +356,93 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static Content Update(Content content)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
-                    }
-
-                    var oldContent = GetById(content.Id);
-                    var binding = content.WorkflowBinding;
-                    var fieldValues = content.QpPluginFieldValues;
-                    var newContent = DefaultRepository.Update<Content, ContentDAL>(content);
-                    if (oldContent.UseNativeEfTypes != newContent.UseNativeEfTypes)
-                    {
-                        Common.ChangeNativeEfTypes(scope.DbConnection, content.Id, newContent.UseNativeEfTypes);
-                    }
-                    var isAggregated = IsAnyAggregatedFields(content.Id);
-                    if (!isAggregated)
-                    {
-                        binding.SetContent(newContent);
-                        WorkflowRepository.UpdateContentWorkflowBind(binding);
-
-                        // Обновить свойства у агрегированных контентов
-                        foreach (var aggregated in content.AggregatedContents)
-                        {
-                            var localAggregated = aggregated;
-                            if (localAggregated.AutoArchive != content.AutoArchive)
-                            {
-                                localAggregated.AutoArchive = content.AutoArchive;
-                                localAggregated = DefaultRepository.Update<Content, ContentDAL>(localAggregated);
-                            }
-
-                            binding.SetContent(localAggregated);
-                            WorkflowRepository.UpdateContentWorkflowBind(binding);
-                        }
-                    }
-
-                    UpdatePluginValues(fieldValues, newContent.Id);
-
-                    DeleteEmptyContentGroups();
-
-                    return GetById(newContent.Id);
-
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                var oldContent = GetById(content.Id);
+                var binding = content.WorkflowBinding;
+                var fieldValues = content.QpPluginFieldValues;
+                var newContent = DefaultRepository.Update<Content, ContentDAL>(content);
+                if (oldContent.UseNativeEfTypes != newContent.UseNativeEfTypes)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                    Common.ChangeNativeEfTypes(scope.DbConnection, content.Id, newContent.UseNativeEfTypes);
+                }
+                var isAggregated = IsAnyAggregatedFields(content.Id);
+                if (!isAggregated)
+                {
+                    binding.SetContent(newContent);
+                    WorkflowRepository.UpdateContentWorkflowBind(binding);
+
+                    // Обновить свойства у агрегированных контентов
+                    foreach (var aggregated in content.AggregatedContents)
                     {
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
+                        var localAggregated = aggregated;
+                        if (localAggregated.AutoArchive != content.AutoArchive)
+                        {
+                            localAggregated.AutoArchive = content.AutoArchive;
+                            localAggregated = DefaultRepository.Update<Content, ContentDAL>(localAggregated);
+                        }
+
+                        binding.SetContent(localAggregated);
+                        WorkflowRepository.UpdateContentWorkflowBind(binding);
                     }
+                }
+
+                UpdatePluginValues(fieldValues, newContent.Id);
+
+                DeleteEmptyContentGroups();
+
+                return GetById(newContent.Id);
+
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
+                {
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
                 }
             }
         }
 
         internal static void Delete(int id)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            try
             {
-                try
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeDropTableTriggerState(scope.DbConnection, false);
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
-                        FieldRepository.ChangeDeleteContentLinkTriggerState(scope.DbConnection, false);
-                        FieldRepository.ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
-                        FieldRepository.ChangeRemoveFieldTriggerState(scope.DbConnection, false);
-                        FieldRepository.ChangeReorderFieldsTriggerState(scope.DbConnection, false);
-                    }
-
-                    FieldRepository.DropLinkWithCheck(id);
-
-                    DefaultRepository.Delete<ContentDAL>(id);
-
-                    Common.DropContentViews(scope.DbConnection, id);
-                    Common.DropContentTables(scope.DbConnection, id);
-
-                    DeleteEmptyContentGroups();
+                    ChangeDropTableTriggerState(scope.DbConnection, false);
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, false);
+                    FieldRepository.ChangeDeleteContentLinkTriggerState(scope.DbConnection, false);
+                    FieldRepository.ChangeCleanEmptyLinksTriggerState(scope.DbConnection, false);
+                    FieldRepository.ChangeRemoveFieldTriggerState(scope.DbConnection, false);
+                    FieldRepository.ChangeReorderFieldsTriggerState(scope.DbConnection, false);
                 }
-                finally
+
+                FieldRepository.DropLinkWithCheck(id);
+
+                DefaultRepository.Delete<ContentDAL>(id);
+
+                Common.DropContentViews(scope.DbConnection, id);
+                Common.DropContentTables(scope.DbConnection, id);
+
+                DeleteEmptyContentGroups();
+            }
+            finally
+            {
+                if (QPContext.DatabaseType == DatabaseType.SqlServer)
                 {
-                    if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                    {
-                        ChangeDropTableTriggerState(scope.DbConnection, true);
-                        ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
-                        FieldRepository.ChangeDeleteContentLinkTriggerState(scope.DbConnection, true);
-                        FieldRepository.ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
-                        FieldRepository.ChangeRemoveFieldTriggerState(scope.DbConnection, true);
-                        FieldRepository.ChangeReorderFieldsTriggerState(scope.DbConnection, true);
-                    }
+                    ChangeDropTableTriggerState(scope.DbConnection, true);
+                    ChangeCleanEmptyGropusTriggerState(scope.DbConnection, true);
+                    FieldRepository.ChangeDeleteContentLinkTriggerState(scope.DbConnection, true);
+                    FieldRepository.ChangeCleanEmptyLinksTriggerState(scope.DbConnection, true);
+                    FieldRepository.ChangeRemoveFieldTriggerState(scope.DbConnection, true);
+                    FieldRepository.ChangeReorderFieldsTriggerState(scope.DbConnection, true);
                 }
             }
         }
@@ -490,7 +479,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
         public static IEnumerable<ContentGroup> GetSiteContentGroups(int siteId)
         {
             var defaultGroupId = GetDefaultGroupId(siteId);
-            var result = MapperFacade.ContentGroupMapper.GetBizList(QPContext.EFContext.ContentGroupSet.Where(g => g.SiteId == siteId).ToList());
+            var result = QPContext.Map<ContentGroup[]>(QPContext.EFContext.ContentGroupSet.Where(g => g.SiteId == siteId).ToList());
 
             foreach (var resultItem in result)
             {
@@ -503,17 +492,17 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
             return result.OrderBy(g => g.Name).ToArray();
         }
 
-        internal static ContentGroup GetGroupById(int id) => MapperFacade.ContentGroupMapper.GetBizObject(DefaultRepository.GetById<ContentGroupDAL>(id));
+        internal static ContentGroup GetGroupById(int id) => QPContext.Map<ContentGroup>(DefaultRepository.GetById<ContentGroupDAL>(id));
 
         internal static ContentGroup GetContentGroup(int contentId)
         {
             var content = QPContext.EFContext.ContentSet.Include("Group").SingleOrDefault(n => n.Id == contentId);
-            return content != null ? MapperFacade.ContentGroupMapper.GetBizObject(content.Group) : null;
+            return content != null ?  QPContext.Map<ContentGroup>(content.Group) : null;
         }
 
         internal static ContentGroup SaveGroup(ContentGroup group)
         {
-            var dal = MapperFacade.ContentGroupMapper.GetDalObject(group);
+            var dal =  QPContext.Map<ContentGroupDAL>(group);
             DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.ContentGroup, group);
             if (group.ForceId != 0)
             {
@@ -522,19 +511,19 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
             var newDal = DefaultRepository.SimpleSave(dal);
             DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.ContentGroup);
-            return MapperFacade.ContentGroupMapper.GetBizObject(newDal);
+            return  QPContext.Map<ContentGroup>(newDal);
         }
 
         internal static ContentGroup UpdateGroup(ContentGroup group)
         {
-            var dal = MapperFacade.ContentGroupMapper.GetDalObject(group);
+            var dal = QPContext.Map<ContentGroupDAL>(group);
             var newDal = DefaultRepository.SimpleUpdate(dal);
-            return MapperFacade.ContentGroupMapper.GetBizObject(newDal);
+            return QPContext.Map<ContentGroup>(newDal);
         }
 
         internal static List<ContentLink> GetContentLinks(int contentId)
         {
-            return MapperFacade.ContentLinkMapper.GetBizList(QPContext.EFContext.ContentToContentSet.Where(n => n.LContentId == contentId || n.RContentId == contentId).OrderBy(n => n.LinkId).ToList());
+            return QPContext.Map<List<ContentLink>>(QPContext.EFContext.ContentToContentSet.Where(n => n.LContentId == contentId || n.RContentId == contentId).OrderBy(n => n.LinkId).ToList());
         }
 
         internal static bool Exists(int id)
@@ -610,14 +599,14 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
         internal static IEnumerable<Field> GetDisplayFields(int contentId, Field field = null)
         {
             // ReSharper disable once PossibleInvalidOperationException
-            var excludeId = field != null && field.ExactType == FieldExactTypes.M2ORelation ? field.BackRelationId.Value : 0;
+            var excludeId = field is { ExactType: FieldExactTypes.M2ORelation } ? field.BackRelationId.Value : 0;
             var fields = field == null || field.ListFieldTitleCount <= 1 && field.ExactType == FieldExactTypes.O2MRelation || field.ListFieldTitleCount <= 0
                 ? null
                 : ((IContentRepository)new ContentRepository()).GetDisplayFieldIds(contentId, field.IncludeRelationsInTitle, excludeId)
                 .Take(field.ListFieldTitleCount)
                 .Select(FieldRepository.GetById);
 
-            var displayField = field?.Relation != null && field.ExactType == FieldExactTypes.O2MRelation ? field.Relation : GetTitleField(contentId);
+            var displayField = field is { Relation: not null, ExactType: FieldExactTypes.O2MRelation } ? field.Relation : GetTitleField(contentId);
             return fields ?? (displayField != null ? new[] { displayField } : new Field[]{});
         }
 
@@ -685,7 +674,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
             var content = QPContext.EFContext.ContentSet.SingleOrDefault(n => n.Id == contentId);
             if (content == null)
             {
-                return Enumerable.Empty<ListItem>();
+                return [];
             }
 
             return QPContext.EFContext.ContentSet
@@ -726,7 +715,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                 return GetList(relatedM2MContentsIDs);
             }
 
-            return new Content[0];
+            return Array.Empty<Content>();
         }
 
         public static IEnumerable<Field> GetRelatedM2MFields(int contentId)
@@ -755,12 +744,12 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                     where f1.ContentId == content.Id && f2.ContentId != content.Id
                     select f2.Content).ToList();
 
-                return MapperFacade.ContentMapper.GetBizList(contentDal)
+                return QPContext.Map<Content[]>(contentDal)
                     .Distinct(new LambdaEqualityComparer<Content>((c1, c2) => c1.Id == c2.Id, c => c.Id))
                     .ToArray();
             }
 
-            return new Content[0];
+            return [];
         }
 
         public static IEnumerable<Field> GetRelatedO2MFields(int contentId)
@@ -805,10 +794,8 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static IEnumerable<int> BatchRemoveContents(int siteId, int contentsToRemove)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.RemovingActions_BatchRemoveContents(siteId, contentsToRemove, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.RemovingActions_BatchRemoveContents(siteId, contentsToRemove, scope.DbConnection);
         }
 
         public static IEnumerable<Content> GetVirtualSubContents(int contentId)
@@ -824,27 +811,28 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                 return GetList(subContentIDs);
             }
 
-            return Enumerable.Empty<Content>();
+            return [];
         }
 
         public static IEnumerable<Content> GetAggregatedContents(int contentId)
         {
             if (contentId > 0)
             {
-                return MapperFacade.ContentMapper.GetBizList(QPContext.EFContext.FieldSet
+                return QPContext.Map<Content[]>(
+                    QPContext.EFContext.FieldSet
                     .Where(f => f.Classifier.ContentId == contentId)
                     .Select(f => f.Content)
                     .ToList());
             }
 
-            return Enumerable.Empty<Content>();
+            return [];
         }
 
         public static Content GetBaseAggregationContent(int contentId)
         {
             if (contentId > 0)
             {
-                return MapperFacade.ContentMapper.GetBizObject(
+                return QPContext.Map<Content>(
                     QPContext.EFContext.FieldSet
                         .Where(f => f.ContentId == contentId && f.Aggregated)
                         .Select(f => f.Classifier.Content)
@@ -876,34 +864,26 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static bool IsArticlePermissionsAllowed(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.IsArticlePermissionsAllowed(scope.DbConnection, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.IsArticlePermissionsAllowed(scope.DbConnection, contentId);
         }
 
         internal static void CopyCustomActions(int sourceId, int destinationId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyContentCustomActions(scope.DbConnection, sourceId, destinationId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyContentCustomActions(scope.DbConnection, sourceId, destinationId);
         }
 
         internal static int GetDefaultGroupId(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetDefaultGroupId(scope.DbConnection, siteId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetDefaultGroupId(scope.DbConnection, siteId);
         }
 
         internal static void UpdateContentModification(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.UpdateContentModification(scope.DbConnection, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.UpdateContentModification(scope.DbConnection, contentId);
         }
 
         internal static void CopyContentWorkflowBind(int sourceSiteId, int destinationSiteId, string relationsBetweenContentsXml)
@@ -960,7 +940,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static IEnumerable<Content> GetChildList(int contentId)
         {
-            return MapperFacade.ContentMapper.GetBizList(
+            return QPContext.Map<Content[]>(
                 QPContext.EFContext.ContentSet
                     .Where(f => f.ParentContentId == contentId)
                     .ToList()
@@ -1220,26 +1200,20 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
 
         internal static int[] GetReferencedAggregatedContentIds(int contentId, int[] articleIds, bool isArchive = false)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetReferencedAggregatedContentIds(QPContext.EFContext, scope.DbConnection, contentId, articleIds, isArchive);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetReferencedAggregatedContentIds(QPContext.EFContext, scope.DbConnection, contentId, articleIds, isArchive);
         }
 
         internal static int[] GetReferencedAggregatedContentIds(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetReferencedAggregatedContentIds(scope.DbConnection, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetReferencedAggregatedContentIds(scope.DbConnection, contentId);
         }
 
         internal static Dictionary<int, Dictionary<int, int>> GetAggregatedArticleIdsMap(int contentId, int[] articleIds)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetAggregatedArticleIdsMap(QPContext.EFContext, scope.DbConnection, contentId, articleIds);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetAggregatedArticleIdsMap(QPContext.EFContext, scope.DbConnection, contentId, articleIds);
         }
 
         private static void UpdatePluginValues(IEnumerable<QpPluginFieldValue> fieldValues, int contentId)
@@ -1257,7 +1231,7 @@ namespace Quantumart.QP8.BLL.Repository.ContentRepositories
                     ContentId = contentId,
                     Value = string.IsNullOrEmpty(fieldValue.Value) ? null : fieldValue.Value,
                     PluginFieldId = fieldValue.Field.Id,
-                    Id = actualFieldIds.TryGetValue(fieldValue.Field.Id, out var result) ? result : 0
+                    Id = actualFieldIds.GetValueOrDefault(fieldValue.Field.Id, 0)
                 };
                 entities.Entry(dalValue).State = dalValue.Id == 0 ? EntityState.Added : EntityState.Modified;
             }

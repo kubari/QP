@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
-using Quantumart.QP8.BLL.Mappers;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 
@@ -25,7 +23,7 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns>информация о типе сущности</returns>
         internal static EntityType GetById(int entityTypeId)
         {
-            return MapperFacade.EntityTypeMapper.GetBizObject(DefaultEntityTypeQuery.Single(et => et.Id == entityTypeId));
+            return QPContext.Map<EntityType>(DefaultEntityTypeQuery.Single(et => et.Id == entityTypeId));
         }
 
         /// <summary>
@@ -35,7 +33,7 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns>информация о типе сущности</returns>
         internal static EntityType GetByCode(string entityTypeCode)
         {
-            var entityType = MapperFacade.EntityTypeMapper.GetBizObject(DefaultEntityTypeQuery.Single(et => et.Code == entityTypeCode));
+            var entityType = QPContext.Map<EntityType>(DefaultEntityTypeQuery.Single(et => et.Code == entityTypeCode));
             return entityType;
         }
 
@@ -48,7 +46,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static List<EntityType> GetList()
         {
-            return MapperFacade.EntityTypeMapper.GetBizList(GetDbList());
+            return QPContext.Map<List<EntityType>>(GetDbList());
         }
 
         internal static IEnumerable<EntityType> GetListByCodes(IEnumerable<string> entityCodes)

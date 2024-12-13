@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
-using Quantumart.QP8.BLL.Mappers;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.Resources;
@@ -16,23 +14,19 @@ namespace Quantumart.QP8.BLL.Repository
     {
         internal DbSet<ContentFolderDAL> CurrentSet => QPContext.EFContext.ContentFolderSet;
 
-        internal ContentFolderMapper CurrentMapper => MapperFacade.ContentFolderMapper;
-
-        internal ContentFolderRowMapper RowMapper => MapperFacade.ContentFolderRowMapper;
-
         public override Folder GetById(int id)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.Include("LastModifiedByUser").SingleOrDefault(s => s.Id == id));
+            return QPContext.Map<ContentFolder>(CurrentSet.Include("LastModifiedByUser").SingleOrDefault(s => s.Id == id));
         }
 
         public override Folder GetRoot(int parentEntityId)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.SingleOrDefault(s => s.ContentId == (decimal)parentEntityId && s.ParentId == null));
+            return QPContext.Map<ContentFolder>(CurrentSet.SingleOrDefault(s => s.ContentId == (decimal)parentEntityId && s.ParentId == null));
         }
 
         public override Folder GetChildByName(int parentId, string name)
         {
-            return CurrentMapper.GetBizObject(CurrentSet.SingleOrDefault(s => s.ParentId == parentId && s.Name == name));
+            return QPContext.Map<ContentFolder>(CurrentSet.SingleOrDefault(s => s.ParentId == parentId && s.Name == name));
         }
 
         public override Folder CreateInDb(Folder folder) => DefaultRepository.Save<ContentFolder, ContentFolderDAL>((ContentFolder)folder);
@@ -41,7 +35,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         public override IEnumerable<Folder> GetAllChildrenFromDb(int parentId)
         {
-            return CurrentMapper.GetBizList(CurrentSet.Where(c => c.ParentId == parentId).ToList());
+            return QPContext.Map<ContentFolder[]>(CurrentSet.Where(c => c.ParentId == parentId).ToList());
         }
 
         public override IEnumerable<Folder> GetChildrenFromDb(int parentEntityId, int parentId)
@@ -49,7 +43,7 @@ namespace Quantumart.QP8.BLL.Repository
             using (var scope = new QPConnectionScope())
             {
 
-                return RowMapper.GetBizList(
+                return QPContext.Map<ContentFolder[]>(
                     Common.GetChildFoldersList(
                         scope.DbConnection, QPContext.EFContext, QPContext.IsAdmin, QPContext.CurrentUserId,
                         parentEntityId,false, parentId, PermissionLevel.List, false, out int _)

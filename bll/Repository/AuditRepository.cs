@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories;
 using Quantumart.QP8.BLL.Repository.Helpers;
@@ -75,7 +74,7 @@ namespace Quantumart.QP8.BLL.Repository
     {
         public IEnumerable<BackendActionLog> Save(IEnumerable<BackendActionLog> logs)
         {
-            IEnumerable<BackendActionLogDAL> toSave = MapperFacade.BackendActionLogMapper.GetDalList(logs.ToList());
+            var toSave = QPContext.Map<BackendActionLogDAL[]>(logs.ToList());
             var saved = DefaultRepository.SimpleSaveBulk(toSave).ToList();
 
             foreach (BackendActionLogDAL backendActionLogDAL in saved)
@@ -85,7 +84,7 @@ namespace Quantumart.QP8.BLL.Repository
                 var savedGroups = DefaultRepository.SimpleSaveBulk(groups);
                 backendActionLogDAL.UserGroups = savedGroups;
             }
-            return MapperFacade.BackendActionLogMapper.GetBizList(saved);
+            return QPContext.Map<BackendActionLog[]>(saved);
         }
 
         public IEnumerable<ListItem> GetEntityTitles(string entityTypeCode, int? parentEntityId, IEnumerable<int> entitiesIDs)
@@ -107,36 +106,32 @@ namespace Quantumart.QP8.BLL.Repository
                 );
             }
 
-            using (var scope = new QPConnectionScope())
-            {
-                var entityType = EntityTypeRepository.GetByCode(entityTypeCode);
-                var result = Common.GetEntitiesTitles(scope.DbConnection, entityType?.Source, entityType?.IdField, entityType?.TitleField, entitiesIDs.ToList());
-                return result.Select(r => new ListItem(Converter.ToInt32(r["ID"]).ToString(), r["TITLE"].ToString()));
-            }
+            using var scope = new QPConnectionScope();
+            var entityType = EntityTypeRepository.GetByCode(entityTypeCode);
+            var result = Common.GetEntitiesTitles(scope.DbConnection, entityType?.Source, entityType?.IdField, entityType?.TitleField, entitiesIDs.ToList());
+            return result.Select(r => new ListItem(Converter.ToInt32(r["ID"]).ToString(), r["TITLE"].ToString()));
         }
 
         IEnumerable<BackendActionLog> IBackendActionLogPagesRepository.GetPage(ListCommand cmd, BackendActionLogFilter filter, out int totalRecords)
         {
             filter = filter ?? new BackendActionLogFilter();
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetActionLogPage(scope.DbConnection, cmd.SortExpression,
-                    filter.actionCode,
-                    filter.actionTypeCode,
-                    filter.entityTypeCode,
-                    filter.entityStringId,
-                    filter.parentEntityId,
-                    filter.entityTitle,
-                    filter.from, filter.to,
-                    (filter.userIDs ?? Enumerable.Empty<int>()).ToList(),
-                    out totalRecords, cmd.StartRecord, cmd.PageSize);
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetActionLogPage(scope.DbConnection, cmd.SortExpression,
+                filter.actionCode,
+                filter.actionTypeCode,
+                filter.entityTypeCode,
+                filter.entityStringId,
+                filter.parentEntityId,
+                filter.entityTitle,
+                filter.from, filter.to,
+                (filter.userIDs ?? Enumerable.Empty<int>()).ToList(),
+                out totalRecords, cmd.StartRecord, cmd.PageSize);
 
-                List<BackendActionLog> results = MapperFacade.BackendActionLogRowMapper.GetBizList(rows.ToList());
+            var results = QPContext.Map<List<BackendActionLog>>(rows.ToList());
 
-                results = GetActionLogUserGroups(results);
+            results = GetActionLogUserGroups(results);
 
-                return results;
-            }
+            return results;
         }
 
         public IEnumerable<BackendActionType> GetActionTypeList()
@@ -153,49 +148,37 @@ namespace Quantumart.QP8.BLL.Repository
 
         IEnumerable<ButtonTrace> IButtonTracePagesRepository.GetPage(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetButtonTracePage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                IEnumerable<ButtonTrace> result = MapperFacade.ButtonTraceRowMapper.GetBizList(rows.ToList());
-                return result;
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetButtonTracePage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<ButtonTrace[]>(rows.ToList());
         }
 
         IEnumerable<RemovedEntity> IRemovedEntitiesPagesRepository.GetPage(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetRemovedEntitiesPage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                IEnumerable<RemovedEntity> result = MapperFacade.RemovedEntitiesRowMapper.GetBizList(rows.ToList());
-                return result;
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetRemovedEntitiesPage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<RemovedEntity[]>(rows.ToList());
         }
 
         public IEnumerable<SessionsLog> GetSucessfullSessionPage(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetSessionsPage(scope.DbConnection, false, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                IEnumerable<SessionsLog> result = MapperFacade.SessionsLogRowMapper.GetBizList(rows.ToList());
-                return result;
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetSessionsPage(scope.DbConnection, false, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<SessionsLog[]>(rows.ToList());
         }
 
         public IEnumerable<SessionsLog> GetFailedSessionPage(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetSessionsPage(scope.DbConnection, true, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                IEnumerable<SessionsLog> result = MapperFacade.SessionsLogRowMapper.GetBizList(rows.ToList());
-                return result;
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetSessionsPage(scope.DbConnection, true, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<SessionsLog[]>(rows.ToList());
         }
 
         public SessionsLog Save(SessionsLog session)
         {
-            var sessionsLogDal = MapperFacade.SessionsLogMapper.GetDalObject(session);
+            var sessionsLogDal = QPContext.Map<SessionsLogDAL>(session);
             sessionsLogDal = DefaultRepository.SimpleSave(sessionsLogDal);
-            return MapperFacade.SessionsLogMapper.GetBizObject(sessionsLogDal);
+            return QPContext.Map<SessionsLog>(sessionsLogDal);
         }
 
         public SessionsLog GetCurrent()
@@ -205,29 +188,26 @@ namespace Quantumart.QP8.BLL.Repository
 
             var slDal =
                 QPContext.EFContext.SessionsLogSet
-                    .Where(s => !s.IsQP7 && s.UserId == uid && s.SessionId == sid)
-                    .FirstOrDefault() ??
+                    .FirstOrDefault(s => !s.IsQP7 && s.UserId == uid && s.SessionId == sid) ??
                 QPContext.EFContext.SessionsLogSet
                     .Where(s => !s.IsQP7 && s.UserId == uid)
                     .OrderByDescending(s => s.StartTime)
                     .FirstOrDefault();
 
-            return MapperFacade.SessionsLogMapper.GetBizObject(slDal);
+            return QPContext.Map<SessionsLog>(slDal);
         }
 
         public SessionsLog Update(SessionsLog session)
         {
-            var sessionsLogDal = MapperFacade.SessionsLogMapper.GetDalObject(session);
+            var sessionsLogDal = QPContext.Map<SessionsLogDAL>(session);
             sessionsLogDal = DefaultRepository.SimpleUpdate(sessionsLogDal);
-            return MapperFacade.SessionsLogMapper.GetBizObject(sessionsLogDal);
+            return QPContext.Map<SessionsLog>(sessionsLogDal);
         }
 
         public void ClearUserToken(int userId, int sessionId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                CommonSecurity.ClearUserToken(scope.DbConnection, userId, sessionId);
-            }
+            using var scope = new QPConnectionScope();
+            CommonSecurity.ClearUserToken(scope.DbConnection, userId, sessionId);
         }
 
         private List<BackendActionLog> GetActionLogUserGroups(List<BackendActionLog> logs)
@@ -237,7 +217,7 @@ namespace Quantumart.QP8.BLL.Repository
                 .Where(x => logs.Select(r => r.Id)
                     .Contains(x.BackendActionLogId))
                 .ToList();
-            List<BackendActionLogUserGroup> logUserGroups = MapperFacade.BackendActionLogUserGroupMapper.GetBizList(backendActionLogUserGroups);
+            var logUserGroups = QPContext.Map<List<BackendActionLogUserGroup>>(backendActionLogUserGroups);
             List<UserGroupDAL> groups = context.UserGroupSet.AsNoTracking()
                 .Where(x => logUserGroups.Select(lug => lug.GroupId)
                     .Distinct()

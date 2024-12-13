@@ -1,7 +1,7 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
 using Quantumart.QP8.DAL;
@@ -10,7 +10,7 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class ObjectFormatRepository
+    internal static class ObjectFormatRepository
     {
         internal static IEnumerable<ListItem> GetObjectFormats(int parentId, int? contentId, int[] selectedFormatIds)
         {
@@ -22,8 +22,8 @@ namespace Quantumart.QP8.BLL.Repository
 
                 return formats.Select(row => new ListItem
                 {
-                    Text = row.Name.ToString(),
-                    Value = row.Id.ToString(),
+                    Text = row.Name,
+                    Value = row.Id.ToString(CultureInfo.InvariantCulture),
                     Selected = selectedFormatIds.Contains((int)row.Id)
                 }).ToArray();
             }
@@ -31,10 +31,8 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static bool IsSiteDotNeByObjectFormatId(int objectFormatId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.IsSiteDotNeByObjectFormatId(scope.DbConnection, objectFormatId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.IsSiteDotNeByObjectFormatId(scope.DbConnection, objectFormatId);
         }
 
         internal static int CreateDefaultFormat(int contentId, string backendUrl, string currentCustomerCode)
@@ -46,7 +44,7 @@ namespace Quantumart.QP8.BLL.Repository
             }
 
             var siteId = ContentRepository.GetById(contentId).SiteId;
-            var pageTemplateId = Converter.ToInt32(QPContext.EFContext.PageTemplateSet.SingleOrDefault(t => t.SiteId == siteId && t.IsSystem).Id);
+            var pageTemplateId = Converter.ToInt32(QPContext.EFContext.PageTemplateSet.Single(t => t.SiteId == siteId && t.IsSystem).Id);
             var isDotNet = SiteRepository.GetById(siteId).IsDotNet;
             var obj = ObjectRepository.SaveObjectProperties(new BllObject
             {
@@ -88,10 +86,8 @@ namespace Quantumart.QP8.BLL.Repository
             }
             else
             {
-                using (var scope = new QPConnectionScope())
-                {
-                    formatBody = Common.FormatBodyVbScript(contentId, currentCustomerCode, backendUrl, scope.DbConnection);
-                }
+                using var scope = new QPConnectionScope();
+                formatBody = Common.FormatBodyVbScript(contentId, currentCustomerCode, backendUrl, scope.DbConnection);
             }
 
             var objectFormatId = FormatRepository.SaveObjectFormatProperties(new ObjectFormat
@@ -100,7 +96,7 @@ namespace Quantumart.QP8.BLL.Repository
                 Name = "default",
                 LastModifiedBy = QPContext.CurrentUserId,
                 FormatBody = formatBody,
-                NetLanguageId = isDotNet ? (int?)1 : null,
+                NetLanguageId = isDotNet ? 1 : null,
                 NetFormatName = isDotNet ? "default" : null,
                 CodeBehind = isDotNet ? codeBehind : null
             }).Id;
@@ -116,28 +112,31 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static NotificationObjectFormat ReadNotificationTemplateFormat(int id)
         {
-            return MapperFacade.NotificationTemplateFormatMapper.GetBizObject(QPContext.EFContext.ObjectFormatSet.SingleOrDefault(g => g.Id == id));
+            return QPContext.Map<NotificationObjectFormat>(
+                QPContext.EFContext.ObjectFormatSet.SingleOrDefault(g => g.Id == id));
         }
 
         internal static ObjectFormat ReadObjectFormat(int id, bool pageOrTemplate)
         {
-            return MapperFacade.ObjectFormatMapper.GetBizObject(QPContext.EFContext.ObjectFormatSet.Include("LastModifiedByUser").SingleOrDefault(g => g.Id == id));
+            return QPContext.Map<ObjectFormat>(
+                QPContext.EFContext.ObjectFormatSet.Include("LastModifiedByUser").SingleOrDefault(g => g.Id == id)
+                );
         }
 
         internal static NotificationObjectFormat UpdateNotificationTemplateFormat(NotificationObjectFormat item) => DefaultRepository.Update<NotificationObjectFormat, ObjectFormatDAL>(item);
 
         internal static IEnumerable<ObjectFormat> GetFormatsByObjectId(int objectId)
         {
-            return MapperFacade.ObjectFormatMapper.GetBizList(QPContext.EFContext.ObjectFormatSet.Where(f => f.ObjectId == objectId).ToList());
+            return QPContext.Map<ObjectFormat[]>(
+                QPContext.EFContext.ObjectFormatSet.Where(f => f.ObjectId == objectId).ToList()
+                );
         }
 
         internal static void CopySiteTemplateObjectFormats(string relationsBetweenObjects, out string result)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.CopySiteTemplateObjectFormats(scope.DbConnection, relationsBetweenObjects);
-                result = MultistepActionHelper.GetXmlFromDataRows(rows, "object_format");
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.CopySiteTemplateObjectFormats(scope.DbConnection, relationsBetweenObjects);
+            result = MultistepActionHelper.GetXmlFromDataRows(rows, "object_format");
         }
     }
 }

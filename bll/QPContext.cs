@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Threading;
 using System.Transactions;
+using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,7 @@ using Microsoft.Net.Http.Headers;
 using NLog;
 using NLog.Fluent;
 using Npgsql;
-using Quantumart.QP8.BLL.Facades;
+using Quantumart.QP8.BLL.MapperProfiles;
 using Quantumart.QP8.BLL.Repository;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
 using Quantumart.QP8.BLL.Repository.FieldRepositories;
@@ -55,6 +56,27 @@ namespace Quantumart.QP8.BLL
                 return dbContext;
             }
         }
+
+        private static MapperConfiguration _mapperConfiguration;
+
+        public static MapperConfiguration MapperConfiguration
+        {
+            get
+            {
+                if (_mapperConfiguration == null)
+                {
+                    _mapperConfiguration = new MapperConfiguration(cfg =>
+                    {
+                        cfg.AddMaps(typeof(DefaultProfile));
+                    });
+                }
+                return _mapperConfiguration;
+            }
+        }
+
+        public static IMapper GetMapper() => MapperConfiguration.CreateMapper();
+
+        public static TDest Map<TDest>(object src) => GetMapper().Map<TDest>(src);
 
         public static DatabaseType DatabaseType => QPConnectionScope.Current?.DbType ?? CurrentDbConnectionInfo?.DbType ?? DatabaseType.SqlServer;
 
@@ -574,7 +596,7 @@ namespace Quantumart.QP8.BLL
                     {
                         cn.Open();
                         var dbUser = Common.Authenticate(cn, data.UserName, data.Password, data.UseAutoLogin, false);
-                        user = MapperFacade.UserMapper.GetBizObject(dbUser);
+                        user = GetMapper().Map<User>(dbUser);
                     }
 
                     if (user != null)
@@ -708,10 +730,10 @@ namespace Quantumart.QP8.BLL
                 LastUpdate = DateTime.Now
             };
 
-            var sessionsLogDal = MapperFacade.SessionsLogMapper.GetDalObject(sessionsLog);
+            var sessionsLogDal = GetMapper().Map<SessionsLogDAL>(sessionsLog);
             dbContext.Entry(sessionsLogDal).State = EntityState.Added;
             dbContext.SaveChanges();
-            sessionsLog = MapperFacade.SessionsLogMapper.GetBizObject(sessionsLogDal);
+            sessionsLog = GetMapper().Map<SessionsLog>(sessionsLogDal);
 
             Logger.ForTraceEvent()
                 .Message("User successfully authenticated")
@@ -771,7 +793,7 @@ namespace Quantumart.QP8.BLL
                 LastUpdate = DateTime.Now
             };
 
-            var sessionsLogDal = MapperFacade.SessionsLogMapper.GetDalObject(sessionsLog);
+            var sessionsLogDal = GetMapper().Map<SessionsLogDAL>(sessionsLog);
             dbContext.Entry(sessionsLogDal).State = EntityState.Added;
             dbContext.SaveChanges();
         }

@@ -5,7 +5,6 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Transactions;
-using AutoMapper;
 using Flurl.Http;
 using Newtonsoft.Json;
 using QP8.Infrastructure;
@@ -79,7 +78,7 @@ namespace Quantumart.QP8.CdcDataImport.Tarantool.Infrastructure.Jobs
             return token.IsCancellationRequested ? Task.FromCanceled(token) : Task.CompletedTask;
         }
 
-        internal async Task ProcessCustomer(QaConfigCustomer customer, bool isNotificationQueueEmpty)
+        private async Task ProcessCustomer(QaConfigCustomer customer, bool isNotificationQueueEmpty)
         {
             var shouldSendHttpRequests = isNotificationQueueEmpty;
             var tableTypeModels = GetCdcDataModels(customer, out var lastExecutedLsn);
@@ -149,23 +148,20 @@ namespace Quantumart.QP8.CdcDataImport.Tarantool.Infrastructure.Jobs
                         SequenceLsn = data.SequenceLsn,
                         OrderNumber = i,
                         Entity = data.Entity.EntityType == TarantoolContentArticleModel.EntityType
-                            ? Mapper.Map<CdcEntityModel, CdcArticleEntityDto>(data.Entity)
-                            : Mapper.Map<CdcEntityModel, CdcEntityDto>(data.Entity)
+                            ? QPContext.Map<CdcArticleEntityDto>(data.Entity)
+                            : QPContext.Map<CdcEntityDto>(data.Entity)
                     }).ToList()
                 }).OrderBy(dto => dto.TransactionLsn).ToList();
         }
 
         private List<CdcTableTypeModel> GetCdcDataModels(QaConfigCustomer customer, out string toLsn)
         {
-            List<CdcTableTypeModel> result;
-            using (var ts = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
-            using (new QPConnectionScope(customer.ConnectionString, customer.DbType))
-            {
-                var fromLsn = _cdcImportService.GetLastExecutedLsn(Settings.Default.HttpEndpoint);
-                toLsn = _cdcImportService.GetMaxLsn();
-                result = _cdcImportService.GetCdcDataFromTables(fromLsn, toLsn);
-                ts.Complete();
-            }
+            using var ts = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted });
+            using var scope = new QPConnectionScope(customer.ConnectionString, customer.DbType);
+            var fromLsn = _cdcImportService.GetLastExecutedLsn(Settings.Default.HttpEndpoint);
+            toLsn = _cdcImportService.GetMaxLsn();
+            var result = _cdcImportService.GetCdcDataFromTables(fromLsn, toLsn);
+            ts.Complete();
 
             return result;
         }
@@ -173,20 +169,18 @@ namespace Quantumart.QP8.CdcDataImport.Tarantool.Infrastructure.Jobs
         private void AddDataToNotificationQueue(QaConfigCustomer customer, IEnumerable<CdcDataTableDto> data, string lastPushedLsn, string lastExecutedLsn)
         {
             Ensure.That(lastPushedLsn == null || !string.IsNullOrWhiteSpace(lastPushedLsn));
-            using (var ts = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted }))
-            using (new QPConnectionScope(customer.ConnectionString, customer.DbType))
-            {
-                var cdcLastExecutedLsnId = _cdcImportService.PostLastExecutedLsn(CdcProviderName.Tarantool.ToString(), Settings.Default.HttpEndpoint, lastPushedLsn, lastExecutedLsn);
-                _systemNotificationService.InsertNotification(GetSystemNotificationModels(cdcLastExecutedLsnId, data));
-                ts.Complete();
-            }
+            using var ts = new TransactionScope(TransactionScopeOption.Required, new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted });
+            using var scope = new QPConnectionScope(customer.ConnectionString, customer.DbType);
+            var cdcLastExecutedLsnId = _cdcImportService.PostLastExecutedLsn(CdcProviderName.Tarantool.ToString(), Settings.Default.HttpEndpoint, lastPushedLsn, lastExecutedLsn);
+            _systemNotificationService.InsertNotification(GetSystemNotificationModels(cdcLastExecutedLsnId, data));
+            ts.Complete();
         }
 
         private static IEnumerable<SystemNotificationModel> GetSystemNotificationModels(int cdcLastExecutedLsnId, IEnumerable<CdcDataTableDto> cdcDataTableDtos)
         {
             foreach (var dto in cdcDataTableDtos)
             {
-                var systemNotificationModel = Mapper.Map<CdcDataTableDto, SystemNotificationModel>(dto);
+                var systemNotificationModel = QPContext.Map<SystemNotificationModel>(dto);
                 systemNotificationModel.CdcLastExecutedLsnId = cdcLastExecutedLsnId;
                 yield return systemNotificationModel;
             }

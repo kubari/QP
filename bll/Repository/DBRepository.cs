@@ -1,18 +1,17 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    public class DbRepository
+    public static class DbRepository
     {
         public static Db Get()
         {
-            var result = MapperFacade.DbMapper.GetBizObject(
+            var result = QPContext.Map<Db>(
                 QPContext.EFContext.DbSet
                     .Include(x => x.LastModifiedByUser)
                     .OrderBy(n => n.Id).FirstOrDefault()
@@ -23,7 +22,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         public static Db GetForUpdate()
         {
-            var result = MapperFacade.DbMapper.GetBizObject(
+            var result = QPContext.Map<Db>(
                 QPContext.EFContext.DbSet.OrderBy(n => n.Id).FirstOrDefault()
              );
             result.AppSettings = GetAppSettings();
@@ -43,18 +42,14 @@ namespace Quantumart.QP8.BLL.Repository
 
         public static string GetDbName()
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetDbName(scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetDbName(scope.DbConnection);
         }
 
         public static string GetDbServerName()
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetDbServerName(scope.DbConnection, QPContext.CurrentCustomerCode);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetDbServerName(scope.DbConnection, QPContext.CurrentCustomerCode);
         }
 
         public static IEnumerable<AppSettingsItem> GetAppSettings()
@@ -62,13 +57,13 @@ namespace Quantumart.QP8.BLL.Repository
             return QPContext.EFContext.AppSettingsSet.Select(n => new AppSettingsItem { Key = n.Key, Value = n.Value }).ToList();
         }
 
-        internal static void SaveAppSettings(IEnumerable<AppSettingsItem> values)
+        private static void SaveAppSettings(IEnumerable<AppSettingsItem> values)
         {
             var result = values.Select(n => new AppSettingsDAL(){ Key = n.Key, Value = n.Value} ).ToList();
             DefaultRepository.SimpleSaveBulk(result);
         }
 
-        internal static void DeleteAppSettings()
+        private static void DeleteAppSettings()
         {
             var context = QPContext.EFContext;
             DefaultRepository.SimpleDeleteBulk(context.AppSettingsSet.ToList(), context);

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
@@ -12,24 +11,20 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class ObjectRepository
+    internal static class ObjectRepository
     {
         internal static IEnumerable<ObjectListItem> ListTemplateObjects(ListCommand cmd, int templateId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetTemplateObjectsByTemplateId(scope.DbConnection, templateId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.ObjectRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetTemplateObjectsByTemplateId(scope.DbConnection, templateId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<ObjectListItem[]>(rows.ToList());
         }
 
         internal static IEnumerable<ObjectListItem> ListPageObjects(ListCommand cmd, int parentId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetPageObjectsByPageId(scope.DbConnection, parentId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.ObjectRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetPageObjectsByPageId(scope.DbConnection, parentId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<ObjectListItem[]>(rows.ToList());
         }
 
         internal static BllObject SaveObjectProperties(BllObject bllObject)
@@ -66,7 +61,7 @@ namespace Quantumart.QP8.BLL.Repository
             entities.SaveChanges();
         }
 
-        internal static void DeleteDefaultValues(int objectId)
+        private static void DeleteDefaultValues(int objectId)
         {
             var entities = QPContext.EFContext;
             foreach (var dal in entities.ObjectValuesSet.Where(x => x.ObjectId == objectId))
@@ -80,7 +75,7 @@ namespace Quantumart.QP8.BLL.Repository
         internal static IEnumerable<ObjectValue> GetDefaultValuesByObjectId(int objectId)
         {
             var entities = QPContext.EFContext;
-            return MapperFacade.ObjectValueMapper.GetBizList(entities.ObjectValuesSet.Where(x => x.ObjectId == objectId).ToList());
+            return QPContext.Map<ObjectValue[]>(entities.ObjectValuesSet.Where(x => x.ObjectId == objectId).ToList());
         }
 
         internal static BllObject UpdateObjectProperties(BllObject bllObject)
@@ -96,10 +91,8 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static void UpdateDefaultFormatId(int objectId, int formatId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.UpdateDefaultFormatId(scope.DbConnection, objectId, formatId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.UpdateDefaultFormatId(scope.DbConnection, objectId, formatId);
         }
 
         private static void ManageObjectType(BllObject newObject, BllObject oldObject, BllObject result)
@@ -149,7 +142,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static BllObject GetObjectPropertiesById(int id)
         {
-            var result = MapperFacade.ObjectMapper.GetBizObject(QPContext.EFContext.ObjectSet.Include("ChildObjectFormats.Notifications").Include("InheritedObjects")
+            var result = QPContext.Map<BllObject>(QPContext.EFContext.ObjectSet.Include("ChildObjectFormats.Notifications").Include("InheritedObjects")
                 .Include("PageTemplate.Site").Include("ObjectType").Include("LastModifiedByUser")
                 .SingleOrDefault(g => g.Id == id));
             result.DefaultValues = GetDefaultValuesByObjectId(id).Select(x => new DefaultValue { VariableName = x.VariableName, VariableValue = x.VariableValue });
@@ -181,9 +174,9 @@ namespace Quantumart.QP8.BLL.Repository
         internal static bool ObjectNetNameUnique(string netName, int? pageId, int pageTemplateId, bool pageOrTemplate, int id)
         {
             var entities = QPContext.EFContext;
-            return pageOrTemplate
-                ? MapperFacade.ObjectMapper.GetBizList(entities.ObjectSet.Where(x => x.PageId == pageId && x.NetName == netName && x.Id != id).ToList()).Count == 0
-                : MapperFacade.ObjectMapper.GetBizList(entities.ObjectSet.Where(x => x.PageId == null && x.PageTemplateId == pageTemplateId && x.NetName == netName && x.Id != id).ToList()).Count == 0;
+            return !entities.ObjectSet.Any(x =>
+                (pageOrTemplate && x.PageId == pageId || !pageOrTemplate && x.PageId == null && x.PageTemplateId == pageTemplateId)
+                && x.NetName == netName && x.Id != id);
         }
 
         internal static Container SaveContainer(Container container)
@@ -191,100 +184,90 @@ namespace Quantumart.QP8.BLL.Repository
             var entities = QPContext.EFContext;
             container.CursorType = "adOpenForwardOnly";
             container.CursorLocation = "adUseClient";
-            var dal = MapperFacade.ContainerMapper.GetDalObject(container);
+            var dal = QPContext.Map<ContainerDAL>(container);
             dal.CursorType = "adOpenForwardOnly";
             dal.CursorLocation = "adUseClient";
             dal.LockType = "adLockReadOnly";
             dal.Locked = null;
             entities.Entry(dal).State = EntityState.Added;
             entities.SaveChanges();
-            return MapperFacade.ContainerMapper.GetBizObject(dal);
+            return QPContext.Map<Container>(dal);
         }
 
-        internal static Container UpdateContainer(Container container)
+        private static Container UpdateContainer(Container container)
         {
-            var dal = MapperFacade.ContainerMapper.GetDalObject(container);
+            var dal = QPContext.Map<ContainerDAL>(container);
             dal = DefaultRepository.SimpleUpdate(dal);
-            return MapperFacade.ContainerMapper.GetBizObject(dal);
+            return QPContext.Map<Container>(dal);
         }
 
-        internal static ContentForm UpdateForm(ContentForm form)
+        private static ContentForm UpdateForm(ContentForm form)
         {
-            var dal = MapperFacade.ContentFormMapper.GetDalObject(form);
+            var dal = QPContext.Map<ContentFormDAL>(form);
             dal = DefaultRepository.SimpleUpdate(dal);
-            return MapperFacade.ContentFormMapper.GetBizObject(dal);
+            return QPContext.Map<ContentForm>(dal);
         }
 
         internal static ContentForm SaveContentForm(ContentForm contentForm)
         {
             var entities = QPContext.EFContext;
-            var dal = MapperFacade.ContentFormMapper.GetDalObject(contentForm);
+            var dal = QPContext.Map<ContentFormDAL>(contentForm);
             entities.Entry(dal).State = EntityState.Added;
             entities.SaveChanges();
-            return MapperFacade.ContentFormMapper.GetBizObject(dal);
+            return QPContext.Map<ContentForm>(dal);
         }
 
-        internal static void DeleteContainer(int objectId)
+        private static void DeleteContainer(int objectId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.DeleteObjectContainer(scope.DbConnection, objectId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.DeleteObjectContainer(scope.DbConnection, objectId);
         }
 
-        internal static void DeleteForm(int objectId)
+        private static void DeleteForm(int objectId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.DeleteObjectForm(scope.DbConnection, objectId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.DeleteObjectForm(scope.DbConnection, objectId);
         }
 
         internal static void SetObjectActiveStatuses(int objectId, IEnumerable<int> activeStatuses, bool isContainer)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            Common.CleanObjectActiveStatuses(scope.DbConnection, objectId);
+            if (isContainer)
             {
-                Common.CleanObjectActiveStatuses(scope.DbConnection, objectId);
-                if (isContainer)
-                {
-                    Common.SetObjectActiveStatuses(scope.DbConnection, objectId, activeStatuses);
-                }
+                Common.SetObjectActiveStatuses(scope.DbConnection, objectId, activeStatuses);
             }
         }
 
         internal static IEnumerable<int> GetObjectActiveStatusIds(int objectId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetObjectActiveStatusesIds(scope.DbConnection, objectId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetObjectActiveStatusesIds(scope.DbConnection, objectId);
         }
 
         internal static IEnumerable<BllObject> GetTemplateObjects(int templateId)
         {
             var entities = QPContext.EFContext;
-            return MapperFacade.ObjectMapper.GetBizList(entities.ObjectSet.Include("ChildObjectFormats").Include("PageTemplate").Where(x => x.PageTemplateId == templateId && x.PageId == null).ToList());
+            return QPContext.Map<BllObject[]>(entities.ObjectSet.Include("ChildObjectFormats").Include("PageTemplate").Where(x => x.PageTemplateId == templateId && x.PageId == null).ToList());
         }
 
         internal static IEnumerable<BllObject> GetPageObjects(int pageId)
         {
             var entities = QPContext.EFContext;
-            return MapperFacade.ObjectMapper.GetBizList(entities.ObjectSet.Include("ChildObjectFormats").Include("PageTemplate").Where(x => x.PageId == pageId).ToList());
+            return QPContext.Map<BllObject[]>(entities.ObjectSet.Include("ChildObjectFormats").Include("PageTemplate").Where(x => x.PageId == pageId).ToList());
         }
 
         internal static IEnumerable<TemplateObjectFormatDto> GetRestTemplateObjects(int templateId)
         {
+            using var scope = new QPConnectionScope();
             var siteId = PageTemplateRepository.GetPageTemplatePropertiesById(templateId).SiteId;
-            using (var scope = new QPConnectionScope())
-            {
-                return MapperFacade.TemplateObjectFormatDtoRowMapper.GetBizList(Common.GetRestTemplateObjects(scope.DbConnection, templateId, siteId).ToList());
-            }
+            return QPContext.Map<TemplateObjectFormatDto[]>(Common.GetRestTemplateObjects(scope.DbConnection, templateId, siteId).ToList());
         }
 
         internal static IEnumerable<EntityObject> GetList(IEnumerable<int> ids)
         {
             IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-            return MapperFacade.ObjectMapper.GetBizList(
+            return QPContext.Map<BllObject[]>(
                 QPContext.EFContext.ObjectSet
                     .Where(f => decIDs.Contains(f.Id))
                     .ToList()
@@ -293,51 +276,39 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static int GetTemplatesElementsCountOnSite(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetTemplatesElementsCountOnSite(scope.DbConnection, siteId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetTemplatesElementsCountOnSite(scope.DbConnection, siteId);
         }
 
         internal static void CopySiteTemplateObjects(string relationsBetweenTemplates, string relationsBetweenPages, out string result)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.CopySiteTemplateObjects(scope.DbConnection, relationsBetweenTemplates, relationsBetweenPages);
-                result = MultistepActionHelper.GetXmlFromDataRows(rows, "object");
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.CopySiteTemplateObjects(scope.DbConnection, relationsBetweenTemplates, relationsBetweenPages);
+            result = MultistepActionHelper.GetXmlFromDataRows(rows, "object");
         }
 
         internal static void CopySiteUpdateObjects(string relationsBetweenObjectFormats, string relationsBetweenObjects)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopySiteUpdateObjects(scope.DbConnection, relationsBetweenObjectFormats, relationsBetweenObjects);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopySiteUpdateObjects(scope.DbConnection, relationsBetweenObjectFormats, relationsBetweenObjects);
         }
 
         internal static void CopySiteObjectValues(string relationsBetweenObjects)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopySiteObjectValues(scope.DbConnection, relationsBetweenObjects);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopySiteObjectValues(scope.DbConnection, relationsBetweenObjects);
         }
 
         internal static void CopySiteContainers(string relationsBetweenObjects, string relationsBetweenContents)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopySiteContainers(scope.DbConnection, relationsBetweenObjects, relationsBetweenContents);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopySiteContainers(scope.DbConnection, relationsBetweenObjects, relationsBetweenContents);
         }
 
         internal static void CopyContainerStatuses(string relBetweenStatuses, string relBetweenObjects)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyContainerStatuses(scope.DbConnection, relBetweenStatuses, relBetweenObjects);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyContainerStatuses(scope.DbConnection, relBetweenStatuses, relBetweenObjects);
         }
     }
 }

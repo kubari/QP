@@ -11,7 +11,6 @@ using AutoMapper;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Quantumart.QP8.BLL;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
@@ -348,6 +347,13 @@ namespace Quantumart.QP8.WebMvc
             services.AddSingleton<Func<string, IActionCode>>(
                 provider => command => (IActionCode)provider
                     .GetRequiredService(actionCodeTypes[command]));
+
+            var configuration = new MapperConfiguration(cfg =>
+            {
+                cfg.AddMaps(typeof(ViewModelMapper));
+            });
+            IMapper mapper = configuration.CreateMapper();
+            services.AddSingleton(mapper);
         }
 
         public void Configure(IApplicationBuilder app, IServiceProvider provider, IWebHostEnvironment env, ILoggerFactory loggerFactory)
@@ -439,12 +445,7 @@ namespace Quantumart.QP8.WebMvc
 
         private static void RegisterMappings()
         {
-            Mapper.Initialize(cfg =>
-            {
-                ViewModelMapper.CreateAllMappings(cfg);
-                DTOMapper.CreateAllMappings(cfg);
-                MapperFacade.CreateAllMappings(cfg);
-            });
+            QPContext.MapperConfiguration.AssertConfigurationIsValid();
         }
     }
 }

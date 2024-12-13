@@ -5,8 +5,8 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using QP8.Infrastructure.Extensions;
 using QP8.Plugins.Contract;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
+using Quantumart.QP8.BLL.MapperProfiles;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
@@ -18,18 +18,16 @@ namespace Quantumart.QP8.BLL.Repository
     {
         internal static IEnumerable<QpPluginListItem> List(ListCommand cmd, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetQpPluginsPage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.QpPluginListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetQpPluginsPage(scope.DbConnection, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return  QPContext.Map<QpPluginListItem[]>(rows.ToArray());
         }
 
         internal static Dictionary<int, QpPlugin> GetQpFieldPluginDict()
         {
             var pluginDict = new Dictionary<int, QpPlugin>();
             var dataList = QPContext.EFContext.PluginSet.Include(n => n.Fields).ToList();
-            var qpPlugins = MapperFacade.QpPluginMapper.GetBizList(dataList);
+            var qpPlugins =  QPContext.Map<QpPlugin[]>(dataList);
             foreach (var plugin in qpPlugins)
             {
                 pluginDict.AddRange(plugin.Fields.ToDictionary(n => n.Id, m => plugin));
@@ -41,7 +39,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static QpPlugin GetById(int id)
         {
-            return MapperFacade.QpPluginMapper.GetBizObject(QPContext.EFContext.PluginSet
+            return  QPContext.Map<QpPlugin>(QPContext.EFContext.PluginSet
                 .Include(n => n.Fields)
                 .Include(n => n.LastModifiedByUser)
                 .SingleOrDefault(g => g.Id == id)
@@ -56,7 +54,7 @@ namespace Quantumart.QP8.BLL.Repository
             {
                 timeStamp = Common.GetSqlDate(scope.DbConnection);
 
-                var dal = MapperFacade.QpPluginMapper.GetDalObject(plugin);
+                var dal = QPContext.Map<PluginDAL>(plugin);
                 dal.LastModifiedBy = QPContext.CurrentUserId;
                 dal.Modified = timeStamp;
                 entities.Entry(dal).State = EntityState.Modified;
@@ -68,7 +66,7 @@ namespace Quantumart.QP8.BLL.Repository
                 var fields = new List<PluginFieldDAL>();
                 foreach (var field in plugin.Fields.Where(n => n.Id == 0))
                 {
-                    var dalField = MapperFacade.QpPluginFieldMapper.GetDalObject(field);
+                    var dalField = QPContext.Map<PluginFieldDAL>(field);
                     dalField.PluginId = dal.Id;
                     if (forceIds != null)
                     {
@@ -124,7 +122,7 @@ namespace Quantumart.QP8.BLL.Repository
             {
                 timeStamp = Common.GetSqlDate(scope.DbConnection);
 
-                var dal = MapperFacade.QpPluginMapper.GetDalObject(plugin);
+                var dal = QPContext.Map<PluginDAL>(plugin);
                 dal.LastModifiedBy = QPContext.CurrentUserId;
                 dal.Modified = timeStamp;
                 dal.Created = timeStamp;
@@ -146,7 +144,7 @@ namespace Quantumart.QP8.BLL.Repository
                 var fields = new List<PluginFieldDAL>();
                 foreach (var field in plugin.Fields)
                 {
-                    var dalField = MapperFacade.QpPluginFieldMapper.GetDalObject(field);
+                    var dalField = QPContext.Map<PluginFieldDAL>(field);
                     dalField.PluginId = dal.Id;
                     if (forceIds != null)
                     {
@@ -166,7 +164,7 @@ namespace Quantumart.QP8.BLL.Repository
                     Common.AddPluginColumn(scope.DbConnection, field);
                 }
 
-                return MapperFacade.QpPluginMapper.GetBizObject(dal);
+                return QPContext.Map<QpPlugin>(dal);
             }
         }
 
@@ -188,16 +186,16 @@ namespace Quantumart.QP8.BLL.Repository
                 Plugin = plugin,
                 PluginId = plugin.Id
             };
-            var dal = MapperFacade.QpPluginVersionMapper.GetDalObject(version);
+            var dal = QPContext.Map<PluginVersionDAL>(version);
             entities.Entry(dal).State = EntityState.Added;
             entities.SaveChanges();
         }
 
         internal static IEnumerable<QpPluginField> GetPluginFields(QpPluginRelationType relationType)
         {
-            var relationTypeDal = MapperFacade.QpPluginFieldMapper.Write(relationType);
+            var relationTypeDal = QpPluginProfile.Write(relationType);
             var pluginFields = QPContext.EFContext.PluginFieldSet.Where(n => n.RelationType == relationTypeDal).ToList();
-            return MapperFacade.QpPluginFieldMapper.GetBizList(pluginFields).ToList();
+            return QPContext.Map<QpPluginField[]>(pluginFields);
         }
     }
 }

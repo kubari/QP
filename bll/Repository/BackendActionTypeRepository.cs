@@ -1,35 +1,33 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
-using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class BackendActionTypeRepository
+    internal static class BackendActionTypeRepository
     {
         private static IQueryable<ActionTypeDAL> DefaultActionTypeQuery => QPContext.EFContext.ActionTypeSet
             .Include("PermissionLevel");
 
         internal static IEnumerable<BackendActionType> GetList()
         {
-            var mapper = MapperFacade.BackendActionTypeMapper;
-            mapper.DisableTranslations = true;
-            var result = mapper.GetBizList(DefaultActionTypeQuery.ToList());
-            mapper.DisableTranslations = false;
+            var result = QPContext.Map<List<BackendActionType>>(DefaultActionTypeQuery.ToList());
+            result.ForEach(n =>
+            {
+                n.Name = n.NotTranslatedName;
+            });
             return result;
         }
 
         /// <summary>
         /// Возвращает тип действия по его идентификатору
         /// </summary>
-        /// <param name="actionTypeId">идентификатор типа действия</param>
+        /// <param name="id"></param>
         /// <returns>тип действия</returns>
         internal static BackendActionType GetById(int id)
         {
-            var actionType = MapperFacade.BackendActionTypeMapper.GetBizObject(DefaultActionTypeQuery.Single(r => r.Id == id));
+            var actionType = QPContext.Map<BackendActionType>(DefaultActionTypeQuery.Single(r => r.Id == id));
             return actionType;
         }
 
@@ -40,7 +38,7 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns>тип действия</returns>
         internal static BackendActionType GetByCode(string code)
         {
-            var actionType = MapperFacade.BackendActionTypeMapper.GetBizObject(DefaultActionTypeQuery.Single(r => r.Code == code));
+            var actionType = QPContext.Map<BackendActionType>(DefaultActionTypeQuery.Single(r => r.Code == code));
             return actionType;
         }
 

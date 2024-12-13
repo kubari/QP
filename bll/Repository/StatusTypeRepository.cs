@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
@@ -11,79 +11,73 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class StatusTypeRepository
+    internal static class StatusTypeRepository
     {
         internal static StatusType GetById(int id)
         {
             var result = GetByIdFromCache(id);
-            if (result != null)
-            {
-                return result;
-            }
-
-            return GetRealById(id);
+            return result ?? GetRealById(id);
         }
 
         private static StatusType GetRealById(int id)
         {
-            return MapperFacade.StatusTypeMapper.GetBizObject(QPContext.EFContext.StatusTypeSet.Include("LastModifiedByUser").SingleOrDefault(n => (int)n.Id == id));
+            return QPContext.Map<StatusType>(
+                QPContext.EFContext.StatusTypeSet.Include("LastModifiedByUser").SingleOrDefault(n => (int)n.Id == id)
+                );
         }
 
-        internal static StatusType GetByIdFromCache(int id)
+        private static StatusType GetByIdFromCache(int id)
         {
             StatusType result = null;
             var cache = QPContext.GetStatusTypeCache();
-            if (cache != null && cache.ContainsKey(id))
+            if (cache != null && cache.TryGetValue(id, out var value))
             {
-                result = cache[id];
+                result = value;
             }
             return result;
         }
 
         internal static StatusType GetByName(string name, int siteId)
         {
-            return MapperFacade.StatusTypeMapper.GetBizObject(QPContext.EFContext.StatusTypeSet.SingleOrDefault(n => n.Name == name && (int)n.SiteId == siteId));
+            return QPContext.Map<StatusType>(
+                QPContext.EFContext.StatusTypeSet.SingleOrDefault(n => n.Name == name && (int)n.SiteId == siteId)
+                );
         }
 
         internal static IEnumerable<StatusType> GetStatusList(int siteId)
         {
-            return MapperFacade.StatusTypeMapper.GetBizList(QPContext.EFContext.StatusTypeSet.Where(s => (int)s.SiteId == siteId).OrderBy(n => n.Weight).ToList());
+            return QPContext.Map<StatusType[]>(
+                QPContext.EFContext.StatusTypeSet.Where(s => (int)s.SiteId == siteId).OrderBy(n => n.Weight).ToList()
+                );
         }
 
-        internal static IEnumerable<StatusType> GetAll() => MapperFacade.StatusTypeMapper.GetBizList(QPContext.EFContext.StatusTypeSet.ToList());
+        internal static IEnumerable<StatusType> GetAll() => QPContext.Map<StatusType[]>(QPContext.EFContext.StatusTypeSet.ToList());
 
         internal static IEnumerable<StatusType> GetColouredStatuses()
         {
-            return MapperFacade.StatusTypeMapper.GetBizList(QPContext.EFContext.StatusTypeSet.Where(s => s.Color != null && s.AltColor != null).ToList());
+            return QPContext.Map<StatusType[]>(QPContext.EFContext.StatusTypeSet.Where(s => s.Color != null && s.AltColor != null).ToList());
         }
 
         /// <summary>
         /// Возвращает список по ids
         /// </summary>
         /// <returns></returns>
-        internal static IEnumerable<StatusType> GetList(IEnumerable<int> IDs)
+        internal static IEnumerable<StatusType> GetList(IEnumerable<int> ids)
         {
             var result = new List<StatusType>();
             var cache = QPContext.GetStatusTypeCache();
             if (cache != null)
             {
-                foreach (var id in IDs)
+                foreach (var id in ids)
                 {
-                    if (cache.ContainsKey(id))
-                    {
-                        result.Add(cache[id]);
-                    }
-                    else
-                    {
-                        result.Add(GetRealById(id));
-                    }
+                    result.Add(cache.TryGetValue(id, out var value) ? value : GetRealById(id));
                 }
             }
             else
             {
-                IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(IDs).Distinct().ToArray();
-                result = MapperFacade.StatusTypeMapper
-                    .GetBizList(QPContext.EFContext.StatusTypeSet
+                IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
+                result = QPContext.Map<List<StatusType>>(
+                    QPContext.EFContext.StatusTypeSet
                         .Where(f => decIDs.Contains(f.Id))
                         .ToList()
                     );
@@ -94,11 +88,9 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<StatusTypeListItem> GetStatusTypePage(ListCommand cmd, int siteId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetStatusTypePage(scope.DbConnection, siteId, "WEIGHT", out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.StatusTypeListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetStatusTypePage(scope.DbConnection, siteId, "WEIGHT", out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<StatusTypeListItem[]>(rows.ToList());
         }
 
         internal static StatusType UpdateProperties(StatusType statusType) => DefaultRepository.Update<StatusType, StatusTypeDAL>(statusType);
@@ -113,17 +105,15 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<int> GetWeightsBySiteId(int siteId, int exceptId = 0)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var result = new List<int>();
+            var rows = Common.GetStatusTypeWeightsBySiteId(scope.DbConnection, siteId, exceptId);
+            foreach (var row in rows)
             {
-                var result = new List<int>();
-                var rows = Common.GetStatusTypeWeightsBySiteId(scope.DbConnection, siteId, exceptId);
-                foreach (var row in rows)
-                {
-                    result.Add(Converter.ToInt32(row.Field<decimal>("WEIGHT")));
-                }
-
-                return result;
+                result.Add(Converter.ToInt32(row.Field<decimal>("WEIGHT")));
             }
+
+            return result;
         }
 
         internal static void Delete(int id)
@@ -133,61 +123,46 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static bool IsInUseWithArticle(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetNumberOfArticlesUsingStatusByStatusId(scope.DbConnection, id) != 0;
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetNumberOfArticlesUsingStatusByStatusId(scope.DbConnection, id) != 0;
         }
 
         internal static bool IsInUseWithWorkflow(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetNumberOfWorkflowsUsingStatusByStatusId(scope.DbConnection, id) != 0;
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetNumberOfWorkflowsUsingStatusByStatusId(scope.DbConnection, id) != 0;
         }
 
         internal static void SetNullAssociatedNotificationsStatusTypesIds(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.SetNullAssociatedNotificationsStatusTypesIds(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.SetNullAssociatedNotificationsStatusTypesIds(scope.DbConnection, id);
         }
 
         internal static void RemoveAssociatedContentItemsStatusHistoryRecords(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveAssociatedContentItemsStatusHistoryRecords(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveAssociatedContentItemsStatusHistoryRecords(scope.DbConnection, id);
         }
 
         internal static void RemoveAssociatedWaitingForApprovalRecords(int id)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RemoveAssociatedWaitingForApprovalRecords(scope.DbConnection, id);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RemoveAssociatedWaitingForApprovalRecords(scope.DbConnection, id);
         }
 
         internal static ListResult<StatusTypeListItem> GetPageForWorkflow(ListCommand listCommand, int[] selectedIds, int workflowId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var totalRecords = -1;
-                var rows = Common.GetStatusPageForWorkflow(scope.DbConnection, workflowId, listCommand.SortExpression, out totalRecords, listCommand.StartRecord, listCommand.PageSize);
-                return new ListResult<StatusTypeListItem> { Data = MapperFacade.StatusTypeListItemRowMapper.GetBizList(rows.ToList()), TotalRecords = totalRecords };
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetStatusPageForWorkflow(scope.DbConnection, workflowId, listCommand.SortExpression, out var totalRecords, listCommand.StartRecord, listCommand.PageSize);
+            return new ListResult<StatusTypeListItem> { Data = QPContext.Map<List<StatusTypeListItem>>(rows.ToList()), TotalRecords = totalRecords };
         }
 
         internal static List<StatusTypeListItem> GetAllForWorkflow(int workflowId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetAllStatusesForWorkflow(scope.DbConnection, workflowId);
-                return MapperFacade.StatusTypeListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetAllStatusesForWorkflow(scope.DbConnection, workflowId);
+            return QPContext.Map<List<StatusTypeListItem>>(rows.ToList());
         }
 
         internal static IEnumerable<ListItem> GetStatusSimpleList(int[] selectedEntitiesIDs)
@@ -197,18 +172,18 @@ namespace Quantumart.QP8.BLL.Repository
                     .Where(n => decStatusIDs.Contains(n.Id))
                     .Select(g => new { g.Id, g.Name })
                     .ToArray()
-                    .Select(g => new ListItem { Value = g.Id.ToString(), Text = g.Name })
+                    .Select(g => new ListItem { Value = g.Id.ToString(CultureInfo.InvariantCulture), Text = g.Name })
                 ;
         }
 
         internal static int GetPublishedStatusIdBySiteId(int siteId)
         {
-            return (int)QPContext.EFContext.StatusTypeSet.SingleOrDefault(x => x.SiteId == siteId && x.Name == StatusName.Published).Id;
+            return (int)QPContext.EFContext.StatusTypeSet.Single(x => x.SiteId == siteId && x.Name == StatusName.Published).Id;
         }
 
         internal static int GetNoneStatusIdBySiteId(int siteId)
         {
-            return (int)QPContext.EFContext.StatusTypeSet.SingleOrDefault(x => x.SiteId == siteId && x.Name == StatusName.None).Id;
+            return (int)QPContext.EFContext.StatusTypeSet.Single(x => x.SiteId == siteId && x.Name == StatusName.None).Id;
         }
     }
 }

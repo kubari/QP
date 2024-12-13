@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
-using System.Transactions;
 using Npgsql;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Repository.ContentRepositories;
 using Quantumart.QP8.BLL.Repository.FieldRepositories;
 using Quantumart.QP8.BLL.Repository.Results;
@@ -15,11 +13,10 @@ using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
 using Quantumart.QP8.Utils;
-using IsolationLevel = System.Transactions.IsolationLevel;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class VirtualContentRepository
+    internal static class VirtualContentRepository
     {
         /// <summary>
         /// Добавляет новый виртуальный контент
@@ -43,11 +40,9 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<VirtualFieldData> GetJoinFieldData(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var dt = Common.GetVirtualFieldData(scope.DbConnection, contentId).AsEnumerable().ToList();
-                return MapperFacade.VirtualFieldDataMapper.GetBizList(dt);
-            }
+            using var scope = new QPConnectionScope();
+            var dt = Common.GetVirtualFieldData(scope.DbConnection, contentId).AsEnumerable().ToList();
+            return QPContext.Map<VirtualFieldData[]>(dt);
         }
 
         /// <summary>
@@ -68,50 +63,40 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static void RunCreateViewDdl(string viewCreateDdl)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.ExecuteSql(scope.DbConnection, viewCreateDdl);
-            }
+            using var scope = new QPConnectionScope();
+            Common.ExecuteSql(scope.DbConnection, viewCreateDdl);
         }
 
         internal static void CreateUnitedView(int contentId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CreateUnitedView(scope.DbConnection, contentId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CreateUnitedView(scope.DbConnection, contentId);
         }
 
         internal static void CreateFrontendViews(int contentId, bool useNative)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var dbType = DatabaseTypeHelper.ResolveDatabaseType(scope.DbConnection);
+            if (dbType == DatabaseType.Postgres)
             {
-                var dbType = DatabaseTypeHelper.ResolveDatabaseType(scope.DbConnection);
-                if (dbType == DatabaseType.Postgres)
-                {
-                    Common.CreateContentViews(scope.DbConnection, contentId, false, useNative);
-                }
-                else
-                {
-                    Common.CreateFrontendViews(scope.DbConnection, contentId);
-                }
+                Common.CreateContentViews(scope.DbConnection, contentId, false, useNative);
+            }
+            else
+            {
+                Common.CreateFrontendViews(scope.DbConnection, contentId);
             }
         }
 
         internal static void DropView(string viewName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.DropView(scope.DbConnection, viewName);
-            }
+            using var scope = new QPConnectionScope();
+            Common.DropView(scope.DbConnection, viewName);
         }
 
         internal static void RefreshView(string viewName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.RefreshView(scope.DbConnection, viewName);
-            }
+            using var scope = new QPConnectionScope();
+            Common.RefreshView(scope.DbConnection, viewName);
         }
 
         /// <summary>
@@ -133,7 +118,7 @@ namespace Quantumart.QP8.BLL.Repository
         internal static IEnumerable<Field> GetFieldsOfContents(IEnumerable<int> contentIds)
         {
             var dContentIDs = Converter.ToDecimalCollection(contentIds);
-            return MapperFacade.FieldMapper.GetBizList(FieldRepository.DefaultFieldQuery
+            return QPContext.Map<Field[]>(FieldRepository.DefaultFieldQuery
                 .Where(f => dContentIDs.Contains(f.ContentId))
                 .OrderBy(f => f.ContentId)
                 .ToList()
@@ -152,16 +137,15 @@ namespace Quantumart.QP8.BLL.Repository
                 .ToArray());
         }
 
-        internal static void ChangeUnionContentTriggerState(bool enable)
+        private static void ChangeUnionContentTriggerState(bool enable)
         {
             if (QPContext.DatabaseType != DatabaseType.SqlServer)
             {
                 return;
             }
-            using (var scope = new QPConnectionScope())
-            {
-                Common.ChangeTriggerState(scope.DbConnection, "ti_union_contents_auto_map_attrs", enable);
-            }
+
+            using var scope = new QPConnectionScope();
+            Common.ChangeTriggerState(scope.DbConnection, "ti_union_contents_auto_map_attrs", enable);
         }
 
         /// <summary>
@@ -206,12 +190,10 @@ namespace Quantumart.QP8.BLL.Repository
                     var viewName = $"uq_v_test_{DateTime.Now.Ticks}";
                     var schema = SqlQuerySyntaxHelper.DbSchemaName(QPContext.DatabaseType);
                     var createTestViewSql = $"CREATE VIEW {schema}{viewName} AS {userQuery}";
-                    using (var connect = QPContext.CreateDbConnection())
-                    {
-                        connect.Open();
-                        Common.ExecuteSql(connect, createTestViewSql);
-                        Common.DropView(connect, viewName);
-                    }
+                    using var connect = QPContext.CreateDbConnection();
+                    connect.Open();
+                    Common.ExecuteSql(connect, createTestViewSql);
+                    Common.DropView(connect, viewName);
 
                     return true;
                 }
@@ -233,18 +215,16 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<UserQueryColumn> GetQuerySchema(string userQuery)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var viewName = $"uq_v_test_{DateTime.Now.Ticks}";
-                var schema = SqlQuerySyntaxHelper.DbSchemaName(QPContext.DatabaseType);
-                var createTestViewSql = $"CREATE VIEW {schema}{viewName} AS {userQuery}";
-                RunCreateViewDdl(createTestViewSql);
+            using var scope = new QPConnectionScope();
+            var viewName = $"uq_v_test_{DateTime.Now.Ticks}";
+            var schema = SqlQuerySyntaxHelper.DbSchemaName(QPContext.DatabaseType);
+            var createTestViewSql = $"CREATE VIEW {schema}{viewName} AS {userQuery}";
+            RunCreateViewDdl(createTestViewSql);
 
-                var dttU = Common.GetViewColumnUsage(scope.DbConnection, viewName);
-                DropView(viewName);
+            var dttU = Common.GetViewColumnUsage(scope.DbConnection, viewName);
+            DropView(viewName);
 
-                return DataTableToUserQueryColumns(dttU);
-            }
+            return DataTableToUserQueryColumns(dttU);
         }
 
         /// <summary>
@@ -252,10 +232,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static IEnumerable<UserQueryColumn> GetViewSchema(string viewName)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return DataTableToUserQueryColumns(Common.GetViewColumnUsage(scope.DbConnection, viewName));
-            }
+            using var scope = new QPConnectionScope();
+            return DataTableToUserQueryColumns(Common.GetViewColumnUsage(scope.DbConnection, viewName));
         }
 
         private static IEnumerable<UserQueryColumn> DataTableToUserQueryColumns(DataTable dt)
@@ -299,38 +277,34 @@ namespace Quantumart.QP8.BLL.Repository
         /// </summary>
         internal static Dictionary<int, int[]> GetContentRelationGraph()
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var relationView = Common.GetVirtualContentRelations(scope.DbConnection);
+            var graph = relationView.AsEnumerable().GroupBy(r => r.Field<decimal>("BASE_CONTENT_ID")).Select(g => new
             {
-                var relationView = Common.GetVirtualContentRelations(scope.DbConnection);
-                var graph = relationView.AsEnumerable().GroupBy(r => r.Field<decimal>("BASE_CONTENT_ID")).Select(g => new
-                {
-                    BaseContentID = g.Key,
-                    ParentContentIDs = g.Select(vr => vr.Field<decimal>("VIRTUAL_CONTENT_ID")).ToArray()
-                });
+                BaseContentID = g.Key,
+                ParentContentIDs = g.Select(vr => vr.Field<decimal>("VIRTUAL_CONTENT_ID")).ToArray()
+            });
 
-                return graph.ToDictionary(p => Converter.ToInt32(p.BaseContentID), p => Converter.ToInt32Collection(p.ParentContentIDs).ToArray());
-            }
+            return graph.ToDictionary(p => Converter.ToInt32(p.BaseContentID), p => Converter.ToInt32Collection(p.ParentContentIDs).ToArray());
         }
 
         internal static Field GetAcceptableBaseFieldForCloning(string fieldName, string contentIds, int virtualContentId, bool forNew)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            var ids = Common.GetAcceptableBaseFieldIdsForCloning(scope.DbConnection, fieldName, contentIds, virtualContentId, forNew).ToList();
+            if (ids.Any())
             {
-                var ids = Common.GetAcceptableBaseFieldIdsForCloning(scope.DbConnection, fieldName, contentIds, virtualContentId, forNew).ToList();
-                if (ids.Any())
-                {
-                    var id = ids.Select(vr => (int)vr.Field<decimal>("id")).First();
-                    return FieldRepository.GetById(id);
-                }
-
-                return null;
+                var id = ids.Select(vr => (int)vr.Field<decimal>("id")).First();
+                return FieldRepository.GetById(id);
             }
+
+            return null;
         }
 
         internal static IEnumerable<EntityObject> GetList(IEnumerable<int> ids)
         {
             var decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-            return MapperFacade.ContentMapper.GetBizList(QPContext.EFContext.ContentSet.Where(f => decIDs.Contains(f.Id)).ToList());
+            return QPContext.Map<Content[]>(QPContext.EFContext.ContentSet.Where(f => decIDs.Contains(f.Id)).ToList());
         }
     }
 }

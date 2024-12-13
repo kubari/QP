@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.XPath;
 using Microsoft.EntityFrameworkCore;
 using QP8.Plugins.Contract;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.Constants;
@@ -15,7 +13,7 @@ using Quantumart.QP8.Utils;
 
 namespace Quantumart.QP8.BLL.Repository
 {
-    internal class SiteRepository
+    internal static class SiteRepository
     {
         /// <summary>
         /// Возвращает информацию о сайте по его идентификатору
@@ -30,7 +28,7 @@ namespace Quantumart.QP8.BLL.Repository
                 return result;
             }
 
-            return MapperFacade.SiteMapper.GetBizObject(QPContext.EFContext.SiteSet.Include("LastModifiedByUser").Include("LockedByUser").SingleOrDefault(n => n.Id == id));
+            return QPContext.Map<Site>(QPContext.EFContext.SiteSet.Include("LastModifiedByUser").Include("LockedByUser").SingleOrDefault(n => n.Id == id));
         }
 
         internal static Site GetByTemplateId(int templateId)
@@ -47,9 +45,9 @@ namespace Quantumart.QP8.BLL.Repository
         {
             Site result = null;
             var cache = QPContext.GetSiteCache();
-            if (cache != null && cache.ContainsKey(id))
+            if (cache != null && cache.TryGetValue(id, value: out var value))
             {
-                result = cache[id];
+                result = value;
             }
 
             return result;
@@ -70,16 +68,14 @@ namespace Quantumart.QP8.BLL.Repository
                 UseSecurity = !QPContext.IsAdmin
             };
 
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetSitesPage(scope.DbConnection, options, out var totalRecords);
-                return new ListResult<SiteListItem> { Data = MapperFacade.SiteListItemRowMapper.GetBizList(rows.ToList()), TotalRecords = totalRecords };
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetSitesPage(scope.DbConnection, options, out var totalRecords);
+            return new ListResult<SiteListItem> { Data = QPContext.Map<List<SiteListItem>>(rows.ToList()), TotalRecords = totalRecords };
         }
 
         internal static IEnumerable<Site> GetAll()
         {
-            return MapperFacade.SiteMapper.GetBizList(QPContext.EFContext.SiteSet.OrderBy(ss => ss.Name).ToList());
+            return QPContext.Map<Site[]>(QPContext.EFContext.SiteSet.OrderBy(ss => ss.Name).ToList());
         }
 
         private static void ChangeInsertAccessTriggerState(bool enable)
@@ -99,33 +95,31 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns>информация о сайте</returns>
         internal static Site Save(Site site)
         {
-            using (var scope = new QPConnectionScope())
+            using var scope = new QPConnectionScope();
+            if (QPContext.DatabaseType == DatabaseType.SqlServer)
             {
-                if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                {
-                    ChangeInsertAccessTriggerState(false);
-                    ChangeInsertDefaultTriggerState(false);
-                    DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Site, site);
-                }
-
-                var fieldValues = site.QpPluginFieldValues;
-                var result = DefaultRepository.Save<Site, SiteDAL>(site);
-
-                CommonSecurity.CreateSiteAccess(scope.DbConnection, result.Id);
-                CreateDefaultStatuses(result);
-                CreateDefaultNotificationTemplate(result);
-                CreateDefaultGroup(result);
-                UpdatePluginValues(fieldValues, result.Id);
-
-                if (QPContext.DatabaseType == DatabaseType.SqlServer)
-                {
-                    DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Site);
-                    ChangeInsertAccessTriggerState(true);
-                    ChangeInsertDefaultTriggerState(true);
-                }
-
-                return result;
+                ChangeInsertAccessTriggerState(false);
+                ChangeInsertDefaultTriggerState(false);
+                DefaultRepository.TurnIdentityInsertOn(EntityTypeCode.Site, site);
             }
+
+            var fieldValues = site.QpPluginFieldValues;
+            var result = DefaultRepository.Save<Site, SiteDAL>(site);
+
+            CommonSecurity.CreateSiteAccess(scope.DbConnection, result.Id);
+            CreateDefaultStatuses(result);
+            CreateDefaultNotificationTemplate(result);
+            CreateDefaultGroup(result);
+            UpdatePluginValues(fieldValues, result.Id);
+
+            if (QPContext.DatabaseType == DatabaseType.SqlServer)
+            {
+                DefaultRepository.TurnIdentityInsertOff(EntityTypeCode.Site);
+                ChangeInsertAccessTriggerState(true);
+                ChangeInsertDefaultTriggerState(true);
+            }
+
+            return result;
         }
 
         private static void CreateDefaultGroup(Site site)
@@ -174,7 +168,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         private static void CreateDefaultStatuses(Site site)
         {
-            var statuses = new StatusTypeDAL[]
+            var statuses = new[]
             {
                 GetNewBuiltInStatus(site, 10, "Created","Article has been created"),
                 GetNewBuiltInStatus(site, 50, "Approved","Article has been approved"),
@@ -227,15 +221,18 @@ namespace Quantumart.QP8.BLL.Repository
             return QPContext.EFContext.SiteSet.Any(n => n.Id == id);
         }
 
-        internal static IEnumerable<Site> GetList(IEnumerable<int> siteIDs)
+        internal static IEnumerable<Site> GetList(IEnumerable<int> siteIds)
         {
-            if (siteIDs != null && siteIDs.Any())
+            var enumerable = siteIds?.ToArray() ?? [];
+            if (enumerable.Any())
             {
-                var decSeteIDs = Converter.ToDecimalCollection(siteIDs);
-                return MapperFacade.SiteMapper.GetBizList(QPContext.EFContext.SiteSet.Where(n => decSeteIDs.Contains(n.Id)).ToList());
+                var decIds = Converter.ToDecimalCollection(enumerable);
+                return QPContext.Map<Site[]>(
+                    QPContext.EFContext.SiteSet.Where(n => decIds.Contains(n.Id)).ToList()
+                    );
             }
 
-            return Enumerable.Empty<Site>();
+            return [];
         }
 
         /// <summary>
@@ -245,10 +242,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns></returns>
         internal static int GetSiteArticleCount(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetSiteArticleCount(siteId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetSiteArticleCount(siteId, scope.DbConnection);
         }
 
         /// <summary>
@@ -258,10 +253,8 @@ namespace Quantumart.QP8.BLL.Repository
         /// <returns></returns>
         internal static int GetSiteContentCount(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetSiteContentCount(siteId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetSiteContentCount(siteId, scope.DbConnection);
         }
 
         internal static IEnumerable<ListItem> GetSimpleList(IEnumerable<int> siteIDs)
@@ -271,56 +264,44 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static int GetSiteVirtualContentCount(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetSiteVirtualContentCount(scope.DbConnection, siteId);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetSiteVirtualContentCount(scope.DbConnection, siteId);
         }
 
         internal static int GetSiteRealContentCount(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetSiteRealContentCount(siteId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetSiteRealContentCount(siteId, scope.DbConnection);
         }
 
         internal static int GetSiteContentLinkCount(int siteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                return Common.GetSiteContentLinkCount(siteId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            return Common.GetSiteContentLinkCount(siteId, scope.DbConnection);
         }
 
         internal static string CopyFolders(int sourceSiteId, int destinationSiteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.CopyFolders(sourceSiteId, destinationSiteId, scope.DbConnection);
-                return MultistepActionHelper.GetXmlFromDataRows(rows, "folder");
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.CopyFolders(sourceSiteId, destinationSiteId, scope.DbConnection);
+            return MultistepActionHelper.GetXmlFromDataRows(rows, "folder");
         }
 
         internal static void CopyFolderAccess(string relationsBetweenFoldersXml)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyFolderAccess(scope.DbConnection, relationsBetweenFoldersXml);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyFolderAccess(scope.DbConnection, relationsBetweenFoldersXml);
         }
 
         internal static void CopySiteSettings(int sourceSiteId, int destinationSiteId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopyWorkflow(sourceSiteId, destinationSiteId, scope.DbConnection);
-                Common.CopySiteAccessRules(sourceSiteId, destinationSiteId, scope.DbConnection);
-                Common.CopyActionSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
-                Common.CopyWorkflowRules(sourceSiteId, destinationSiteId, scope.DbConnection);
-                Common.CopyCommandSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
-                Common.CopyStyleSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopyWorkflow(sourceSiteId, destinationSiteId, scope.DbConnection);
+            Common.CopySiteAccessRules(sourceSiteId, destinationSiteId, scope.DbConnection);
+            Common.CopyActionSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
+            Common.CopyWorkflowRules(sourceSiteId, destinationSiteId, scope.DbConnection);
+            Common.CopyCommandSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
+            Common.CopyStyleSiteBind(sourceSiteId, destinationSiteId, scope.DbConnection);
         }
 
         public static List<QpPluginFieldValue> GetPluginValues(int siteId)
@@ -356,7 +337,7 @@ namespace Quantumart.QP8.BLL.Repository
                     SiteId = siteId,
                     Value = string.IsNullOrEmpty(fieldValue.Value) ? null : fieldValue.Value,
                     PluginFieldId = fieldValue.Field.Id,
-                    Id = actualFieldIds.TryGetValue(fieldValue.Field.Id, out var result) ? result : 0
+                    Id = actualFieldIds.GetValueOrDefault(fieldValue.Field.Id, 0)
                 };
                 entities.Entry(dalValue).State = dalValue.Id == 0 ? EntityState.Added : EntityState.Modified;
             }

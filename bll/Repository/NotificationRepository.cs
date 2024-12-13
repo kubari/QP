@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Quantumart.QP8.BLL.Facades;
 using Quantumart.QP8.BLL.ListItems;
 using Quantumart.QP8.Configuration;
 using Quantumart.QP8.Constants;
@@ -18,15 +17,13 @@ namespace Quantumart.QP8.BLL.Repository
 
         public void ClearEmailField(int fieldId)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.ClearEmailField(scope.DbConnection, fieldId);
-            }
+            using var scope = new QPConnectionScope();
+            Common.ClearEmailField(scope.DbConnection, fieldId);
         }
 
         public IEnumerable<Notification> GetUserNotifications(int userId)
         {
-            return MapperFacade.NotificationMapper.GetBizList(QPContext.EFContext
+            return QPContext.Map<Notification[]>(QPContext.EFContext
                 .NotificationsSet
                 .Where(n => n.ToUser.Id == userId)
                 .ToList()
@@ -35,7 +32,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         public IEnumerable<Notification> GetUserGroupNotifications(int groupId)
         {
-            return MapperFacade.NotificationMapper.GetBizList(QPContext.EFContext
+            return QPContext.Map<Notification[]>(QPContext.EFContext
                 .NotificationsSet
                 .Where(n => n.ToUserGroup.Id == groupId)
                 .ToList()
@@ -45,7 +42,7 @@ namespace Quantumart.QP8.BLL.Repository
         internal static IEnumerable<Notification> GetList(IEnumerable<int> ids)
         {
             IEnumerable<decimal> decIDs = Converter.ToDecimalCollection(ids).Distinct().ToArray();
-            return MapperFacade.NotificationMapper.GetBizList(QPContext.EFContext.NotificationsSet
+            return QPContext.Map<Notification[]>(QPContext.EFContext.NotificationsSet
                 .Where(f => decIDs.Contains(f.Id))
                 .ToList()
             );
@@ -53,16 +50,14 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<NotificationListItem> List(ListCommand cmd, int contentId, out int totalRecords)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                var rows = Common.GetNotificationsPage(scope.DbConnection, contentId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
-                return MapperFacade.NotificationListItemRowMapper.GetBizList(rows.ToList());
-            }
+            using var scope = new QPConnectionScope();
+            var rows = Common.GetNotificationsPage(scope.DbConnection, contentId, cmd.SortExpression, out totalRecords, cmd.StartRecord, cmd.PageSize);
+            return QPContext.Map<NotificationListItem[]>(rows.ToList());
         }
 
         internal static Notification GetPropertiesById(int id)
         {
-            return MapperFacade.NotificationMapper.GetBizObject(QPContext.EFContext.NotificationsSet
+            return QPContext.Map<Notification>(QPContext.EFContext.NotificationsSet
                 .Include(x => x.LastModifiedByUser)
                 .Include(x => x.Workflow)
                 .Include(x => x.FromUser)
@@ -95,10 +90,8 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static void CopySiteUpdateNotifications(string relationsBetweenObjectFormats, string relationsBetweenContents)
         {
-            using (var scope = new QPConnectionScope())
-            {
-                Common.CopySiteUpdateNotifications(scope.DbConnection, relationsBetweenObjectFormats, relationsBetweenContents);
-            }
+            using var scope = new QPConnectionScope();
+            Common.CopySiteUpdateNotifications(scope.DbConnection, relationsBetweenObjectFormats, relationsBetweenContents);
         }
 
         internal static void CopyContentNotifications(string relationsBetweenContentsXml, string relationsBetweenStatusesXml, string relationsBetweenAttributesXml)
@@ -111,7 +104,7 @@ namespace Quantumart.QP8.BLL.Repository
 
         internal static IEnumerable<Notification> GetContentNotifications(int contentId, IEnumerable<string> codes)
         {
-            return MapperFacade.NotificationMapper.GetBizList(QPContext.EFContext.NotificationsSet
+            return QPContext.Map<Notification[]>(QPContext.EFContext.NotificationsSet
                 .Where(g => g.ContentId == contentId)
                 .FilterByCode(codes)
                 .ToList()
