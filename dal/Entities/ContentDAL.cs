@@ -89,8 +89,7 @@ namespace Quantumart.QP8.DAL.Entities
     {
         public void Configure(EntityTypeBuilder<ContentDAL> builder)
         {
-            builder.ToTable("CONTENT");
-
+            builder.ToTable("CONTENT", tableBuilder => { tableBuilder.HasTrigger("CONTENT");});
             builder.Property(x => x.ForReplication).HasColumnName("FOR_REPLICATION");
             builder.Property(x => x.FormScript).HasColumnName("FORM_SCRIPT");
             builder.Property(x => x.UseForContext).HasColumnName("USE_FOR_CONTEXT");

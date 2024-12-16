@@ -135,7 +135,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<FieldDAL> builder)
             {
-                builder.ToTable("CONTENT_ATTRIBUTE");
+                builder.ToTable("CONTENT_ATTRIBUTE", tableBuilder => { tableBuilder.HasTrigger("CONTENT_ATTRIBUTE"); });
 
                 builder.Property(x => x.DisableListAutoWrap).HasColumnName("DISABLE_LIST_AUTO_WRAP");
 				builder.Property(x => x.UseSeparateReverseViews).HasColumnName("USE_SEPARATE_REVERSE_VIEWS");

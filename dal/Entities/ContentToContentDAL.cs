@@ -38,7 +38,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ContentToContentDAL> builder)
             {
-                builder.ToTable("content_to_content");
+                builder.ToTable("content_to_content",  tableBuilder => { tableBuilder.HasTrigger("content_to_content");});
 
                 builder.Property(x => x.Symmetric).HasColumnName("SYMMETRIC");
 				builder.Property(x => x.LinkId).HasColumnName("link_id").ValueGeneratedOnAdd();
