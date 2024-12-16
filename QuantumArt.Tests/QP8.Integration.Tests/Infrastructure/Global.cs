@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -36,7 +34,7 @@ namespace QP8.Integration.Tests.Infrastructure
                     return $"{basePart}User Id={EnvHelpers.SqlDbLoginToRunTests};Password={EnvHelpers.SqlDbPasswordToRunTests}";
                 }
 
-                return $"{basePart}Integrated Security=True;Connection Timeout=600";
+                return $"{basePart}Integrated Security=True;TrustServerCertificate=True;Connection Timeout=600";
             }
         }
 
