@@ -2306,7 +2306,6 @@ where cd.content_item_id = cte.item_id and cd.attribute_id = @fieldId";
                 }
                 else
                 {
-                    sqlBuilder.AppendLine(";");
                     sqlBuilder.AppendLine("WITH PAGED_DATA_CTE");
                     sqlBuilder.AppendLine("AS");
                     sqlBuilder.AppendLine("(");

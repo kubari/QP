@@ -18,13 +18,14 @@ namespace Quantumart.QP8.DAL
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);
+            var compatLevel = 120;
             if (!string.IsNullOrWhiteSpace(_nameOrConnectionString))
             {
-                optionsBuilder.UseSqlServer(_nameOrConnectionString);
+                optionsBuilder.UseSqlServer(_nameOrConnectionString, o => o.UseCompatibilityLevel(compatLevel));
             }
             else if (_connection != null)
             {
-                optionsBuilder.UseSqlServer(_connection);
+                optionsBuilder.UseSqlServer(_connection, o => o.UseCompatibilityLevel(compatLevel));
             }
         }
     }

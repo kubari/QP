@@ -373,7 +373,7 @@ namespace Quantumart.QP8.DAL
 
             var startPaging = dbType == DatabaseType.Postgres ? $@"select *, count(*) over() ""Count"" from ("
                 : useSql2012Syntax ? "SELECT "
-                : $";WITH PAGED_DATA_CTE AS (SELECT ROW_NUMBER() OVER (ORDER BY {sortExpression}) AS Row,";
+                : $"WITH PAGED_DATA_CTE AS (SELECT ROW_NUMBER() OVER (ORDER BY {sortExpression}) AS Row,";
 
             var endPaging = dbType == DatabaseType.Postgres ? $") a LIMIT {pageSize} OFFSET {startRow - 1}"
                 : useSql2012Syntax ? $@"ORDER BY {sortExpression} OFFSET {startRow - 1} ROWS FETCH NEXT {pageSize} ROWS ONLY"
