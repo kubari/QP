@@ -134,7 +134,7 @@ namespace QP8.WebMvc.NUnit.Tests.BLL
             var valuesState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
             var newModel = CreateValidatorAndRun(field.FormName, newValue, valuesState);
             var currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);
-            Assert.That(currentState, Is.EqualTo(newModel));
+            Assert.That(currentState, Is.Not.EqualTo(newModel));
 
             article.CheckChangesValues(currentState, newModel);
             currentState = article.FieldValues.ToDictionary(v => v.Field.FormName, v => v.Value);

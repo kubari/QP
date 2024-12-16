@@ -13,7 +13,7 @@ namespace QP8.WebMvc.NUnit.Tests
             var dt = new DateTime(2010, 3, 9, 5, 6, 7);
             var values = ScheduleHelper.GetSqlValuesFromScheduleDateTime(dt);
             Assert.That(20100309, Is.EqualTo(values.Item1));
-            Assert.That(50607, Is.EqualTo(values.Item1));
+            Assert.That(50607, Is.EqualTo(values.Item2));
         }
 
         [Test]
