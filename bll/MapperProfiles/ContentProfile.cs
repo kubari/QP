@@ -63,7 +63,7 @@ namespace Quantumart.QP8.BLL.MapperProfiles
                  .ForMember(data => data.Content, opt => opt.Ignore())
                  ;
 
-             CreateMap<ContentGroupDAL, Content>(MemberList.None);
+             CreateMap<ContentGroupDAL, ContentGroup>(MemberList.None);
 
              CreateMap<ContentGroup, ContentGroupDAL>(MemberList.None)
                  .ForMember(data => data.Site, opt => opt.Ignore())
