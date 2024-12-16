@@ -16,6 +16,9 @@ namespace Quantumart.QP8.BLL.MapperProfiles
 
             CreateMap<ContextMenuItem, ContextMenuItemDAL>(MemberList.None);
 
+            CreateMap<ContextMenuDAL, ContextMenu>(MemberList.None)
+                .ForMember(biz => biz.Items, opt => opt.MapFrom(x => QPContext.Map<ContextMenuItem[]>(x.Items.ToList())));
+
             CreateMap<DataRow, ContextMenu>(MemberList.None)
                 .ForMember(biz => biz.Id, opt => opt.MapFrom(row => row.Field<int>("ID")))
                 .ForMember(biz => biz.Code, opt => opt.MapFrom(row => row.Field<string>("CODE")))
