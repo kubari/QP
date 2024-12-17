@@ -33,7 +33,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<UnionContentsDAL> builder)
             {
-                builder.ToTable("union_contents");
+                builder.ToTable("union_contents", tableBuilder => { tableBuilder.HasTrigger("union_contents"); });
 
                 builder.Property(x => x.VirtualContentId).HasColumnName("virtual_content_id");
 				builder.Property(x => x.UnionContentId).HasColumnName("union_content_id");

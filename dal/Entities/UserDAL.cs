@@ -95,7 +95,7 @@ namespace Quantumart.QP8.DAL.Entities
     {
         public void Configure(EntityTypeBuilder<UserDAL> builder)
         {
-            builder.ToTable("USERS");
+            builder.ToTable("users", tableBuilder => { tableBuilder.HasTrigger("users"); });
 
             builder.Property(x => x.EnableContentGroupingInTree).HasColumnName("ENABLE_CONTENT_GROUPING_IN_TREE");
             builder.Property(x => x.MustChangePassword).HasColumnName("MUST_CHANGE_PASSWORD");

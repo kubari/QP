@@ -58,7 +58,7 @@ namespace Quantumart.QP8.DAL.Entities
     {
         public void Configure(EntityTypeBuilder<ObjectDAL> builder)
         {
-            builder.ToTable("OBJECT");
+            builder.ToTable("object", tableBuilder => { tableBuilder.HasTrigger("object"); });
 
             builder.Property(x => x.PermanentLock).HasColumnName("PERMANENT_LOCK");
             builder.Property(x => x.Id).HasColumnName("OBJECT_ID");

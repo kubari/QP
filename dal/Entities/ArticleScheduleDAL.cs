@@ -51,7 +51,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ArticleScheduleDAL> builder)
             {
-                builder.ToTable("CONTENT_ITEM_SCHEDULE");
+                builder.ToTable("content_item_schedule", tableBuilder => { tableBuilder.HasTrigger("content_item_schedule"); });
 
                 builder.Property(x => x.ArticleId).HasColumnName("CONTENT_ITEM_ID");
 				builder.Property(x => x.Id).HasColumnName("SCHEDULE_ID").ValueGeneratedOnAdd();

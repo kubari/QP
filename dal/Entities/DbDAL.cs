@@ -41,7 +41,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<DbDAL> builder)
             {
-                builder.ToTable("DB");
+                builder.ToTable("db", tableBuilder => { tableBuilder.HasTrigger("db"); });
 
                 builder.Property(x => x.UseS3).HasColumnName("USE_S3");
                 builder.Property(x => x.UseCdc).HasColumnName("USE_CDC");

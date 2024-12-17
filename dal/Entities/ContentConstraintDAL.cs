@@ -31,7 +31,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ContentConstraintDAL> builder)
             {
-                builder.ToTable("content_constraint");
+                builder.ToTable("content_constraint", tableBuilder => { tableBuilder.HasTrigger("content_constraint"); });
 
                 builder.Property(x => x.Id).HasColumnName("constraint_id").ValueGeneratedOnAdd();
 				builder.Property(x => x.ContentId).HasColumnName("content_id");

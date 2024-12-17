@@ -43,7 +43,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ContentFolderDAL> builder)
             {
-                builder.ToTable("content_FOLDER");
+                builder.ToTable("content_folder", tableBuilder => { tableBuilder.HasTrigger("content_folder"); });
 
                 builder.Property(x => x.ContentId).HasColumnName("content_ID");
 				builder.Property(x => x.Id).HasColumnName("FOLDER_ID").ValueGeneratedOnAdd();

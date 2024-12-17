@@ -93,7 +93,7 @@ namespace Quantumart.QP8.DAL.Entities
     {
         public void Configure(EntityTypeBuilder<SiteDAL> builder)
         {
-            builder.ToTable("SITE");
+            builder.ToTable("site", tableBuilder => { tableBuilder.HasTrigger("site"); });
 
             builder.Property(x => x.DisableListAutoWrap).HasColumnName("DISABLE_LIST_AUTO_WRAP");
             builder.Property(x => x.DownloadEfSource).HasColumnName("DOWNLOAD_EF_SOURCE");

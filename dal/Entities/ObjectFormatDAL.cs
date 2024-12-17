@@ -58,7 +58,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ObjectFormatDAL> builder)
             {
-                builder.ToTable("OBJECT_FORMAT");
+                builder.ToTable("object_format", tableBuilder => { tableBuilder.HasTrigger("object_format"); });
 
                 builder.Property(x => x.PermanentLock).HasColumnName("PERMANENT_LOCK");
 				builder.Property(x => x.Id).HasColumnName("OBJECT_FORMAT_ID");

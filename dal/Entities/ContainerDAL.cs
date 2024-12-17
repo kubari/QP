@@ -56,7 +56,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ContainerDAL> builder)
             {
-                builder.ToTable("CONTAINER");
+                builder.ToTable("container", tableBuilder => { tableBuilder.HasTrigger("container"); });
 
                 builder.Property(x => x.ObjectId).HasColumnName("OBJECT_ID");
 				builder.Property(x => x.ContentId).HasColumnName("CONTENT_ID");

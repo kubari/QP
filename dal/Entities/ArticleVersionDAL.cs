@@ -47,7 +47,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ArticleVersionDAL> builder)
             {
-                builder.ToTable("CONTENT_ITEM_VERSION");
+                builder.ToTable("content_item_version", tableBuilder => { tableBuilder.HasTrigger("content_item_version"); });
 
                 builder.Property(x => x.LastModifiedBy).HasColumnName("LAST_MODIFIED_BY");
 				builder.Property(x => x.Modified).HasColumnName("MODIFIED");

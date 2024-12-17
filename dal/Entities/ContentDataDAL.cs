@@ -37,7 +37,8 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ContentDataDAL> builder)
             {
-                builder.ToTable("CONTENT_DATA");
+
+                builder.ToTable("content_data", tableBuilder => { tableBuilder.HasTrigger("content_data");});
 
                 builder.Property(x => x.SPLITTED).HasColumnName("SPLITTED");
 				builder.Property(x => x.FieldId).HasColumnName("ATTRIBUTE_ID");

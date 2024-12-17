@@ -62,7 +62,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<PageDAL> builder)
             {
-                builder.ToTable("PAGE");
+                builder.ToTable("page", tableBuilder => { tableBuilder.HasTrigger("page"); });
 
                 builder.Property(x => x.PermanentLock).HasColumnName("PERMANENT_LOCK");
 				builder.Property(x => x.SendNocacheHeaders).HasColumnName("SEND_NOCACHE_HEADERS");

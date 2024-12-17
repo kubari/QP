@@ -30,7 +30,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ObjectValuesDAL> builder)
             {
-                builder.ToTable("OBJECT_VALUES");
+                builder.ToTable("object_values", tableBuilder => { tableBuilder.HasTrigger("object_values"); });
 
                 builder.Property(x => x.ObjectId).HasColumnName("OBJECT_ID");
 				builder.Property(x => x.VariableName).HasColumnName("VARIABLE_NAME");

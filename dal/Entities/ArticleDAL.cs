@@ -59,7 +59,7 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ArticleDAL> builder)
             {
-                builder.ToTable("CONTENT_ITEM");
+                builder.ToTable("content_item", tableBuilder => { tableBuilder.HasTrigger("content_item"); });
 
                 builder.Property(x => x.UniqueId).HasColumnName("UNIQUE_ID");
 				builder.Property(x => x.CancelSplit).HasColumnName("CANCEL_SPLIT");

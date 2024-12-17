@@ -40,7 +40,8 @@ namespace Quantumart.QP8.DAL.Entities
         {
             public void Configure(EntityTypeBuilder<ArticlePermissionDAL> builder)
             {
-                builder.ToTable("CONTENT_ITEM_ACCESS");
+                builder.ToTable("content_item_access", tableBuilder => { tableBuilder.HasTrigger("content_item_access"); });
+
 
                 builder.Property(x => x.ArticleId).HasColumnName("CONTENT_ITEM_ID");
 				builder.Property(x => x.UserId).HasColumnName("USER_ID");
