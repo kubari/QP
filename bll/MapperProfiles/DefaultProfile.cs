@@ -45,6 +45,7 @@ namespace Quantumart.QP8.BLL.MapperProfiles
             CreateMap<XmlDbUpdateLogModel, XmlDbUpdateLogEntity>(MemberList.None);
 
             CreateMap<CustomFilter, CustomFilterItem>(MemberList.None);
+            CreateMap<CustomFilterItem, CustomFilter>(MemberList.None);
 
             CreateMap<ExternalNotificationDAL, ExternalNotificationModel>(MemberList.None);
             CreateMap<ExternalNotificationModel, ExternalNotificationDAL>(MemberList.None);
