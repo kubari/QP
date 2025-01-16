@@ -17,6 +17,7 @@ namespace QP8.Integration.Tests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+            AppContext.SetSwitch("Npgsql.EnableStoredProcedureCompatMode", true);
             builder.UseContentRoot(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
         }
     }

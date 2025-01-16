@@ -50,6 +50,7 @@ namespace Quantumart.QP8.ConsoleDbUpdate
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+            AppContext.SetSwitch("Npgsql.EnableStoredProcedureCompatMode", true);
 
             // TODO: REMOVE AFTER RESHARPER FIX BUG https://youtrack.jetbrains.com/issue/RSRP-466882
             if (args.Contains("--disablePipedInput"))

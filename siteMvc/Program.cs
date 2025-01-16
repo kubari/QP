@@ -18,6 +18,7 @@ namespace Quantumart.QP8.WebMvc
         {
             LogManager.Setup().LoadConfigurationFromFile("NLog.config");
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+            AppContext.SetSwitch("Npgsql.EnableStoredProcedureCompatMode", true);
             BuildWebHost(args).Run();
         }
 
