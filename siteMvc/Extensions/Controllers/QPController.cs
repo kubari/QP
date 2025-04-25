@@ -83,6 +83,29 @@ namespace Quantumart.QP8.WebMvc.Extensions.Controllers
             }
         }
 
+        protected async Task<JsonResult> JsonHtmlEscaped(string viewName, object model)
+        {
+            if (HttpContext.IsXmlDbUpdateReplayAction())
+            {
+                if (!ModelState.IsValid)
+                {
+                    var exceptions = ModelState.Values
+                        .SelectMany(x => x.Errors)
+                        .Select(x => x.Exception ?? new ArgumentException(x.ErrorMessage));
+
+                    throw new AggregateException(exceptions);
+                }
+
+                return Json(null);
+            }
+
+            string view = await RenderPartialView(viewName, model);
+
+            view = view.Replace("\"", "\\\"").Replace("\r\n", "");
+
+            return Json(new { success = true, view });
+        }
+
         protected async Task<JsonResult> JsonHtml(string viewName, object model)
         {
             if (HttpContext.IsXmlDbUpdateReplayAction())
@@ -295,6 +318,19 @@ namespace Quantumart.QP8.WebMvc.Extensions.Controllers
             if (formatId.HasValue)
             {
                 PersistToHttpContext(HttpContextItems.NotificationFormatId, formatId.Value);
+            }
+        }
+
+        protected void PersistUserAndGroupIds(int? userId, int? groupId)
+        {
+            if (userId.HasValue)
+            {
+                PersistToHttpContext(HttpContextItems.UserId, userId.Value);
+            }
+
+            if (groupId.HasValue)
+            {
+                PersistToHttpContext(HttpContextItems.GroupId, groupId.Value);
             }
         }
 

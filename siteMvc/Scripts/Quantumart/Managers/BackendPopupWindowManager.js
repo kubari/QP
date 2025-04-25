@@ -91,10 +91,13 @@ export class BackendPopupWindowManager extends Observable {
     return popupWindow;
   }
 
-  closeNotExistentPopupWindows() {
+  closeNotExistentPopupWindows(isCompleteAction = false) {
     const popupWindows = this.getAllPopupWindows();
     for (let popupWindowIndex = 0; popupWindowIndex < popupWindows.length; popupWindowIndex++) {
       const popupWindow = popupWindows[popupWindowIndex];
+      if (isCompleteAction) {
+        popupWindow.set_closeWithoutCheck(true);
+      }
       const entityTypeCode = popupWindow.get_entityTypeCode();
       const entityId = popupWindow.get_entityId();
       const actionTypeCode = popupWindow.get_actionTypeCode();
@@ -111,7 +114,8 @@ export class BackendPopupWindowManager extends Observable {
               break;
             }
           }
-        } else if (!$o.checkEntityExistence(entityTypeCode, entityId)) {
+        } else if (entityTypeCode === window.ENTITY_TYPE_CODE_ARTICLE_EXTERNAL_WORKFLOW
+          || !$o.checkEntityExistence(entityTypeCode, entityId)) {
           popupWindow.closeWindow();
         }
       }
@@ -119,8 +123,10 @@ export class BackendPopupWindowManager extends Observable {
   }
 
   onActionExecuted(eventArgs) {
-    if (eventArgs.get_isRemoving() || eventArgs.get_isArchiving() || eventArgs.get_isRestoring()) {
-      this.closeNotExistentPopupWindows();
+    if (eventArgs.get_isRemoving() || eventArgs.get_isArchiving() || eventArgs.get_isRestoring()
+      || eventArgs.get_actionTypeCode() === window.ACTION_TYPE_CODE_COMPLETE
+    ) {
+      this.closeNotExistentPopupWindows(eventArgs.get_actionTypeCode() === window.ACTION_TYPE_CODE_COMPLETE);
     }
   }
 

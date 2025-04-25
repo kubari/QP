@@ -575,6 +575,16 @@ namespace Quantumart.QP8.BLL
             set => SetValueToStorage(_currentDbConnectionInfo, value, HttpContextItems.CurrentDbConnectionStringKey);
         }
 
+        public static void SetConnectionInfo(string customerCode)
+        {
+            QpConnectionInfo cnnInfo = QPConfiguration.GetConnectionInfo(customerCode);
+            if (cnnInfo == null)
+            {
+                throw new InvalidOperationException($"Unable to find customer code {customerCode}");
+            }
+            CurrentDbConnectionInfo = cnnInfo;
+        }
+
         public static bool CheckCustomerCode(string customerCode)
         {
             return QPConfiguration.GetCustomerCodes().Contains(customerCode);
@@ -584,6 +594,15 @@ namespace Quantumart.QP8.BLL
         {
             QpUser resultUser = null;
             message = string.Empty;
+
+            if ((!data.UseAutoLogin || !data.IsSso)
+                && QPConfiguration.Options.ExternalAuthentication.Enabled
+                && QPConfiguration.Options.ExternalAuthentication.DisableInternalAccounts)
+            {
+                errorCode = QpAuthenticationErrorNumber.IntegratedAccountsDisabled;
+
+                return resultUser;
+            }
 
             var sqlCn = QPConfiguration.GetConnectionInfo(data.CustomerCode);
 
@@ -595,7 +614,7 @@ namespace Quantumart.QP8.BLL
                     using (var cn = CreateDbConnection(sqlCn))
                     {
                         cn.Open();
-                        var dbUser = Common.Authenticate(cn, data.UserName, data.Password, data.UseAutoLogin, false);
+                        var dbUser = Common.Authenticate(cn, data.UserName, data.Password, data.UseAutoLogin || data.IsSso, false);
                         user = GetMapper().Map<User>(dbUser);
                     }
 
