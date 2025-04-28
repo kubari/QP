@@ -388,7 +388,7 @@ namespace Quantumart.QP8.WebMvc
 
             var configuration = new MapperConfiguration(cfg =>
             {
-                cfg.AddMaps(typeof(ViewModelMapper));
+                ViewModelMapper.CreateAllMappings(cfg);
             });
             IMapper mapper = configuration.CreateMapper();
             services.AddSingleton(mapper);

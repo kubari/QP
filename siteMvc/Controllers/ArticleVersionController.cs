@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +6,6 @@ using AutoMapper;
 using Quantumart.QP8.BLL;
 using Quantumart.QP8.BLL.Helpers;
 using Quantumart.QP8.BLL.Services;
-using Quantumart.QP8.BLL.Services.ArticleServices;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.WebMvc.Extensions.Controllers;
 using Quantumart.QP8.WebMvc.Infrastructure.ActionFilters;
@@ -52,7 +50,7 @@ namespace Quantumart.QP8.WebMvc.Controllers
         {
             var listCommand = GetListCommand(page, pageSize, orderBy);
             var serviceResult = ArticleVersionService.List(parentId, listCommand);
-            var result = _mapper.Map<List<ArticleVersion>, List<ArticleVersionListItem>>(serviceResult);
+            var result = _mapper.Map<List<ArticleVersionListItem>>(serviceResult);
             return new TelerikResult(result, result.Count);
         }
 
