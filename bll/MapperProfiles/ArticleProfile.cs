@@ -20,7 +20,6 @@ namespace Quantumart.QP8.BLL.MapperProfiles
                 .ForMember(data => data.Locked, opt => opt.MapFrom(src => src.LockedBy == 0 ? null : (DateTime?)src.Locked))
                 .ForMember(data => data.LockedBy, opt => opt.MapFrom(src => src.LockedBy == 0 ? null : (int?)src.LockedBy))
                 .ForMember(data => data.AccessRules, opt => opt.Ignore())
-                .ForMember(data => data.Content, opt => opt.Ignore())
                 .ForMember(data => data.ContentData, opt => opt.Ignore())
                 .ForMember(data => data.ItemToItem, opt => opt.Ignore())
                 .ForMember(data => data.ItemToItemVersions, opt => opt.Ignore())
@@ -30,7 +29,8 @@ namespace Quantumart.QP8.BLL.MapperProfiles
                 .ForMember(data => data.Status, opt => opt.Ignore())
                 .ForMember(data => data.StatusHistory, opt => opt.Ignore())
                 .ForMember(data => data.Versions, opt => opt.Ignore())
-                .ForMember(data => data.WorkflowBinding, opt => opt.Ignore());
+                .ForMember(data => data.WorkflowBinding, opt => opt.Ignore())
+                .ForMember(data => data.AliasForTree, opt => opt.Ignore());
 
             CreateMap<DataRow, ArticleListItem>(MemberList.None)
                 .ForMember(biz => biz.Id, opt => opt.MapFrom(row => Convert.ToInt32(row["ID"])))

@@ -11,9 +11,14 @@ namespace Quantumart.QP8.BLL.Repository
         internal static ArticleSchedule GetSchedule(Article item)
         {
             var dal = GetDalByArticleId(item.Id);
-            return dal == null ?
-                ArticleSchedule.CreateSchedule(item) :
-                QPContext.Map<ArticleSchedule>(dal);
+
+            if (dal == null)
+            {
+                return ArticleSchedule.CreateSchedule(item);
+            }
+
+            dal.Article = QPContext.Map<ArticleDAL>(item);
+            return QPContext.Map<ArticleSchedule>(dal);
         }
 
         internal static ArticleSchedule GetScheduleById(int id)

@@ -16,7 +16,6 @@ namespace Quantumart.QP8.BLL.MapperProfiles
                 .AfterMap(ProceedComplexMappingToDal);
 
             CreateMap<ArticleScheduleDAL, ArticleSchedule>(MemberList.None)
-                .ForMember(data => data.Article, opt => opt.Ignore())
                 .ForMember(data => data.Recurring, opt => opt.Ignore())
                 .AfterMap(ProceedComplexMappingToBiz);
 
