@@ -42,6 +42,8 @@ namespace Quantumart.QP8.BLL.MapperProfiles
                 .ForMember(biz => biz.Modified, opt => opt.MapFrom(row => row.Field<DateTime>(FieldName.Modified)))
                 .ForMember(biz => biz.LastModifiedByUserId, opt => opt.MapFrom(row => Converter.ToInt32(row.Field<decimal>("LastModifiedByUserId"))))
                 .ForMember(biz => biz.LastModifiedByUser, opt => opt.MapFrom(row => row.Field<string>("LastModifiedByUser")));
+
+            CreateMap<PermissionLevelDAL, EntityPermissionLevel>(MemberList.None);
         }
 
         private void CreateArticlePermissionMaps()
