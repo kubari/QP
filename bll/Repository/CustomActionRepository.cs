@@ -78,7 +78,7 @@ namespace Quantumart.QP8.BLL.Repository
 
             entities.Entry(dal).State = EntityState.Modified;
 
-            var dal2 = QPContext.Map<CustomActionDAL>(customAction.Action);
+            var dal2 = QPContext.Map<BackendActionDAL>(customAction.Action);
             entities.Entry(dal2).State = EntityState.Modified;
 
             // Toolbar Buttons
