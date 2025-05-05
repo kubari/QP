@@ -5,7 +5,7 @@
     <RootNamespace>Quantumart.QP8.ConsoleDbUpdate</RootNamespace>
     <TargetFramework>net8.0</TargetFramework>
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <Copyright>Copyright © 2007-2019 Quantum Art</Copyright>
+    <Copyright>Copyright © 2007-2025 Quantum Art</Copyright>
     <Company>Quantum Art</Company>
     <Product>QP8.Framework</Product>
     <Description>QP8 Console DB Update</Description>

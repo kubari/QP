@@ -10,6 +10,10 @@ https://nuget.qsupport.ru/packages/QP8.Plugins.Contract
 
 ## История версий
 
+### QP8.Plugins.Contract.1.2.0
+
+Переход на .NET 8 (#176363)
+
 ### QP8.Plugins.Contract.1.1.0
 
 Переход на .NET6
