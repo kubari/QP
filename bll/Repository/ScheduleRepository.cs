@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Quantumart.QP8.Constants;
 using Quantumart.QP8.DAL;
 using Quantumart.QP8.DAL.Entities;
@@ -12,18 +13,13 @@ namespace Quantumart.QP8.BLL.Repository
         {
             var dal = GetDalByArticleId(item.Id);
 
-            if (dal == null)
-            {
-                return ArticleSchedule.CreateSchedule(item);
-            }
-
-            dal.Article = QPContext.Map<ArticleDAL>(item);
-            return QPContext.Map<ArticleSchedule>(dal);
+            return dal == null ? ArticleSchedule.CreateSchedule(item) : QPContext.Map<ArticleSchedule>(dal);
         }
 
         internal static ArticleSchedule GetScheduleById(int id)
         {
             var dal = GetDalById(id);
+
             return dal == null ? null : QPContext.Map<ArticleSchedule>(dal);
         }
 
@@ -79,12 +75,18 @@ namespace Quantumart.QP8.BLL.Repository
 
         private static ArticleScheduleDAL GetDalByArticleId(int id)
         {
-            return QPContext.EFContext.ArticleScheduleSet.SingleOrDefault(n => n.ArticleId == id);
+            return QPContext.EFContext.ArticleScheduleSet
+                .Include(x => x.Article)
+                .ThenInclude(x => x.Content)
+                .SingleOrDefault(n => n.ArticleId == id);
         }
 
         private static ArticleScheduleDAL GetDalById(int id)
         {
-            return QPContext.EFContext.ArticleScheduleSet.SingleOrDefault(n => n.Id == id);
+            return QPContext.EFContext.ArticleScheduleSet
+                .Include(x => x.Article)
+                .ThenInclude(x => x.Content)
+                .SingleOrDefault(n => n.Id == id);
         }
 
         private static void Delete(int id)
