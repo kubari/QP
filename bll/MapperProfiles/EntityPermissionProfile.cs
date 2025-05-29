@@ -22,7 +22,7 @@ namespace Quantumart.QP8.BLL.MapperProfiles
             CreateWorkflowPermissionMaps();
 
             CreateMap<DataRow, ChildEntityPermissionListItem>(MemberList.None)
-                .ForMember(biz => biz.Id, opt => opt.MapFrom(row => row.Field<int>("ID")))
+                .ForMember(biz => biz.Id, opt => opt.MapFrom(row => Converter.ToInt32(row.Field<object>("ID"))))
                 .ForMember(biz => biz.IsExplicit, opt => opt.MapFrom(row => row.Field<bool>("IsExplicit")))
                 .ForMember(biz => biz.Hide, opt => opt.MapFrom(row => row.Field<bool>("Hide")))
                 .ForMember(biz => biz.PropagateToItems, opt => opt.MapFrom(row => Converter.ToBoolean(row.Field<decimal>("PropagateToItems"))))
