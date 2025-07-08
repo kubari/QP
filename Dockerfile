@@ -8,7 +8,7 @@ RUN npm ci
 COPY siteMvc ./siteMvc
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build-env
 LABEL stage=intermediate-back
 
 WORKDIR /src
@@ -21,9 +21,9 @@ COPY --from=front-builder /src/siteMvc/Scripts/build ./siteMvc/Scripts/build
 COPY --from=front-builder /src/siteMvc/Static/build ./siteMvc/Static/build
 
 WORKDIR /src/siteMvc
-RUN dotnet publish "WebMvc.csproj" -c Release -o /app/out -f net6.0
+RUN dotnet publish "WebMvc.csproj" -c Release -o /app/out -f net8.0
 
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 
 ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME:-QP}
@@ -34,5 +34,7 @@ ENV SERVICE_VERSION=${SERVICE_VERSION:-0.0.0.0}
 WORKDIR /app
 COPY --from=build-env /app/out .
 RUN rm -rf /app/hosting.json
+ENV ASPNETCORE_HTTP_PORTS=80
+ENV ASPNETCORE_HTTP_URLS="http://+:80"
 EXPOSE 80
 ENTRYPOINT ["dotnet", "Quantumart.QP8.WebMvc.dll"]
