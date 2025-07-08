@@ -34,7 +34,5 @@ ENV SERVICE_VERSION=${SERVICE_VERSION:-0.0.0.0}
 WORKDIR /app
 COPY --from=build-env /app/out .
 RUN rm -rf /app/hosting.json
-ENV ASPNETCORE_HTTP_PORTS=80
-ENV ASPNETCORE_HTTP_URLS="http://+:80"
 EXPOSE 80
-ENTRYPOINT ["dotnet", "Quantumart.QP8.WebMvc.dll"]
+ENTRYPOINT ["dotnet", "Quantumart.QP8.WebMvc.dll", "--urls", "http://*:80"]
