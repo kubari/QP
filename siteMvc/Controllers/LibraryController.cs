@@ -327,10 +327,16 @@ namespace Quantumart.QP8.WebMvc.Controllers
 
         private JsonResult GetTestFileDownloadResult(PathInfo info, string fileName, bool isVersion)
         {
+            if (!PathInfo.IsSafeRelativePath(fileName))
+            {
+                return Json(new { proceed = false, msg = string.Format(LibraryStrings.AccessDenied, fileName, QPContext.CurrentUserName) });
+            }
+
             if (!PathInfo.CheckSecurity(info.FixedPath, false, _pathHelper.Separator).Result)
             {
                 return Json(new { proceed = false, msg = string.Format(LibraryStrings.AccessDenied, info.Path, QPContext.CurrentUserName) });
             }
+
             var path = info.GetPath(fileName);
             return _pathHelper.FileExists(path)
                 ? Json(new { proceed = true, key = SavePath(path) })
