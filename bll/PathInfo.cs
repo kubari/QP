@@ -121,5 +121,25 @@ namespace Quantumart.QP8.BLL
 
             return path;
         }
+
+        public static bool IsSafeRelativePath(string path)
+        {
+            if (I.Path.IsPathRooted(path))
+            {
+                return false;
+            }
+
+            string[] segments = path.Split(I.Path.DirectorySeparatorChar, I.Path.AltDirectorySeparatorChar);
+
+            foreach (string segment in segments)
+            {
+                if (segment == "..")
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 }
