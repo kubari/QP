@@ -60,13 +60,10 @@ export class FullTextBlock {
 
     if (data) {
       const state = {};
-      if (data.fieldID) {
-        state.fieldID = data.fieldID;
-      }
 
-      if (data.text) {
-        state.text = data.text;
-      }
+      state.fieldID = data.fieldID;
+
+      state.text = data.text;
 
       if ($.isEmptyObject(state)) {
         return null;
@@ -121,7 +118,10 @@ export class FullTextBlock {
   clear() {
     let $resetElem;
     if (this._textFieldsComboElement) {
-      $resetElem = $(this._textFieldsComboElement).find("option[data-field_is_title='True']");
+      $resetElem = $(this._textFieldsComboElement).find("option[data-field_id='']");
+      if (!$resetElem.length) {
+        $resetElem = $(this._textFieldsComboElement).find("option[data-field_is_title='True']");
+      }
       if (!$resetElem.length) {
         $resetElem = $(this._textFieldsComboElement).find("option[value='']");
       }
