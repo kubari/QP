@@ -3,6 +3,7 @@ using Quantumart.QP8.Configuration;
 using Quantumart.QP8.Security.Ldap;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Options;
 
 namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
 {
@@ -15,13 +16,15 @@ namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
         private readonly string _userName;
         private readonly string _password;
         private readonly ILdapIdentityManager _ldapIdentityManager;
+        private readonly string _usersDomain;
 
-        public ActiveDirectoryRepository(ILdapIdentityManager ldapIdentityManager)
+        public ActiveDirectoryRepository(ILdapIdentityManager ldapIdentityManager, IOptions<LdapSettings> setting)
         {
             _userName = QPConfiguration.ADsConnectionUsername;
             _password = QPConfiguration.ADsConnectionPassword;
             _path = QPConfiguration.ADsPath;
             _ldapIdentityManager = ldapIdentityManager;
+            _usersDomain = setting.Value.UsersDomain;
         }
 
         /// <summary>
@@ -46,7 +49,7 @@ namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
         {
             string userFilter = LdapQueryBuilder.UserOf(GetGroupReferences(membership));
             List<LdapEntry> users = _ldapIdentityManager.GetEntriesWithAttributesByFilter(userFilter, _userProperties);
-            return users.Select(u => new ActiveDirectoryUser(u)).ToArray();
+            return users.Select(u => new ActiveDirectoryUser(u, _usersDomain)).ToArray();
         }
 
         private static string[] GetGroupReferences(IEnumerable<ActiveDirectoryGroup> membership)

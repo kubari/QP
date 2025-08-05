@@ -29,4 +29,6 @@ public class LdapSettings
     public TimeSpan ConnectionTimeout { get; init; }
 
     public bool FollowReferences { get; init; }
+
+    public string UsersDomain { get; init; } = null;
 }
