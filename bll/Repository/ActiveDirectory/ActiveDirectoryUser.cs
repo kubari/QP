@@ -7,6 +7,7 @@ namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
     public class ActiveDirectoryUser : ActiveDirectoryEntityBase
     {
         private readonly string AccountDescriptor = "DC=";
+        private readonly string _domain;
 
         public string FirstName { get; }
         public string LastName { get; }
@@ -15,9 +16,10 @@ namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
         public UserAccountControlDescription AccountControl { get; }
         public bool IsDisabled { get; }
 
-        public ActiveDirectoryUser(LdapEntry user)
+        public ActiveDirectoryUser(LdapEntry user, string domain = null)
             : base(user)
         {
+            _domain = domain;
             LdapAttributeSet attributes = user.GetAttributeSet();
             FirstName = GetAttrbibuteValue<string>(attributes, "givenName", false);
             LastName = GetAttrbibuteValue<string>(attributes, "sn", false);
@@ -29,10 +31,12 @@ namespace Quantumart.QP8.BLL.Repository.ActiveDirectory
 
         private string GetDomain()
         {
-            return ReferencedPath.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Where(s => s.StartsWith(AccountDescriptor))
-                .Select(s => s.Replace(AccountDescriptor, string.Empty))
-                .FirstOrDefault();
+            return !string.IsNullOrEmpty(_domain)
+                ? _domain
+                : ReferencedPath.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(s => s.StartsWith(AccountDescriptor))
+                    .Select(s => s.Replace(AccountDescriptor, string.Empty))
+                    .FirstOrDefault();
         }
     }
 }
