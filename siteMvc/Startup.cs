@@ -1,78 +1,79 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using AutoMapper;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using Quantumart.QP8.BLL;
-using Quantumart.QP8.BLL.Repository;
-using Quantumart.QP8.BLL.Repository.ArticleRepositories;
-using Quantumart.QP8.BLL.Repository.ContentRepositories;
-using Quantumart.QP8.BLL.Repository.XmlDbUpdate;
-using Quantumart.QP8.BLL.Services;
-using Quantumart.QP8.BLL.Services.ActionPermissions;
-using Quantumart.QP8.BLL.Services.ArticleServices;
-using Quantumart.QP8.BLL.Services.Audit;
-using Quantumart.QP8.BLL.Services.ContentServices;
-using Quantumart.QP8.BLL.Services.DTO;
-using Quantumart.QP8.BLL.Services.EntityPermissions;
-using Quantumart.QP8.BLL.Services.MultistepActions;
-using Quantumart.QP8.BLL.Services.MultistepActions.Base;
-using Quantumart.QP8.BLL.Services.VisualEditor;
-using Quantumart.QP8.Utils.FullTextSearch;
-using Quantumart.QP8.WebMvc.Infrastructure.Services.XmlDbUpdate;
-using Quantumart.QP8.WebMvc.Infrastructure.Services.XmlDbUpdate.Interfaces;
-using Quantumart.QP8.WebMvc.ViewModels;
-using Quantumart.QP8.Security;
-using Quantumart.QP8.Configuration;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using NLog;
 using NLog.Web;
 using QA.Configuration;
 using QA.Validation.Xaml.Extensions.Rules;
 using Quantumart.QP8.ArticleScheduler;
+using Quantumart.QP8.BLL;
 using Quantumart.QP8.BLL.Helpers;
+using Quantumart.QP8.BLL.Repository;
+using Quantumart.QP8.BLL.Repository.ActiveDirectory;
+using Quantumart.QP8.BLL.Repository.ArticleRepositories;
 using Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers;
+using Quantumart.QP8.BLL.Repository.ContentRepositories;
+using Quantumart.QP8.BLL.Repository.XmlDbUpdate;
+using Quantumart.QP8.BLL.Services;
+using Quantumart.QP8.BLL.Services.ActionPermissions;
 using Quantumart.QP8.BLL.Services.API;
+using Quantumart.QP8.BLL.Services.ArticleServices;
+using Quantumart.QP8.BLL.Services.Audit;
 using Quantumart.QP8.BLL.Services.CdcImport;
+using Quantumart.QP8.BLL.Services.ContentServices;
 using Quantumart.QP8.BLL.Services.DbServices;
+using Quantumart.QP8.BLL.Services.DTO;
+using Quantumart.QP8.BLL.Services.EntityPermissions;
+using Quantumart.QP8.BLL.Services.FileSynchronization;
+using Quantumart.QP8.BLL.Services.KeyCloak;
+using Quantumart.QP8.BLL.Services.MultistepActions;
+using Quantumart.QP8.BLL.Services.MultistepActions.Base;
 using Quantumart.QP8.BLL.Services.NotificationSender;
 using Quantumart.QP8.BLL.Services.UserSynchronization;
-using Quantumart.QP8.Scheduler.API;
+using Quantumart.QP8.BLL.Services.VisualEditor;
 using Quantumart.QP8.CommonScheduler;
+using Quantumart.QP8.Configuration;
+using Quantumart.QP8.Configuration.Enums;
+using Quantumart.QP8.Scheduler.API;
 using Quantumart.QP8.Scheduler.Notification.Providers;
+using Quantumart.QP8.Security;
+using Quantumart.QP8.Security.Ldap;
+using Quantumart.QP8.Utils.FullTextSearch;
 using Quantumart.QP8.WebMvc.Extensions.Helpers;
+using Quantumart.QP8.WebMvc.Extensions.Logging;
 using Quantumart.QP8.WebMvc.Extensions.ModelBinders;
+using Quantumart.QP8.WebMvc.Extensions.ServiceCollections;
+using Quantumart.QP8.WebMvc.Infrastructure.Middleware;
+using Quantumart.QP8.WebMvc.Infrastructure.Services.XmlDbUpdate;
+using Quantumart.QP8.WebMvc.Infrastructure.Services.XmlDbUpdate.Interfaces;
+using Quantumart.QP8.WebMvc.ViewModels;
 using A = Quantumart.QP8.BLL.Services.ArticleServices;
-using S = Quantumart.QP8.ArticleScheduler;
 using ContentService = Quantumart.QP8.BLL.Services.ContentServices.ContentService;
 using CustomActionService = Quantumart.QP8.BLL.Services.CustomActionService;
 using DbService = Quantumart.QP8.BLL.Services.DbServices.DbService;
-using Quantumart.QP8.Security.Ldap;
-using Quantumart.QP8.BLL.Repository.ActiveDirectory;
-using Quantumart.QP8.BLL.Services.FileSynchronization;
-using Quantumart.QP8.BLL.Services.KeyCloak;
-using Quantumart.QP8.Configuration.Enums;
-using Quantumart.QP8.WebMvc.Infrastructure.Middleware;
-using Quantumart.QP8.WebMvc.Extensions.ServiceCollections;
+using S = Quantumart.QP8.ArticleScheduler;
 
 namespace Quantumart.QP8.WebMvc
 {
@@ -431,7 +432,10 @@ namespace Quantumart.QP8.WebMvc
             app.UseForwardedHeaders();
             app.UseAuthentication();
             QPContext.SetServiceProvider(provider);
+
             app.UseMiddleware<LoggingMiddleware>();
+            app.UseRequestLogging();
+
             RegisterMappings();
 
             app.Use(async (context, next) =>
@@ -447,7 +451,7 @@ namespace Quantumart.QP8.WebMvc
 
             app.UseSession();
 
-            app.UseMvc(RegisterRoutes);
+            app.UseMvc(RegisterRoutes);            
         }
 
         private static void RegisterRoutes(IRouteBuilder routes)

@@ -1,23 +1,23 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 
-namespace Quantumart.QP8.DAL
+namespace Quantumart.QP8.DAL;
+
+public class SqlServerQPModelDataContext : QPModelDataContext
 {
-    public class SqlServerQPModelDataContext : QPModelDataContext
+    public SqlServerQPModelDataContext(string nameOrConnectionString)
+        : base(nameOrConnectionString)
     {
-        public SqlServerQPModelDataContext(string nameOrConnectionString)
-            : base(nameOrConnectionString)
-        {
-        }
+    }
 
-        public SqlServerQPModelDataContext(DbConnection dbConnection)
-            : base(dbConnection)
-        {
-        }
+    public SqlServerQPModelDataContext(DbConnection dbConnection)
+        : base(dbConnection)
+    {
+    }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            base.OnConfiguring(optionsBuilder);
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
             var compatLevel = 120;
             if (!string.IsNullOrWhiteSpace(_nameOrConnectionString))
             {
@@ -31,4 +31,6 @@ namespace Quantumart.QP8.DAL
     }
 
 
+        optionsBuilder.AddInterceptors(new DbLoggingInterceptor());
+    }
 }
