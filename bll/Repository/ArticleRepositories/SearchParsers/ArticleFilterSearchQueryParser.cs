@@ -254,7 +254,8 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers
             var paramName = "@field" + fieldId.Replace("-", "_");
             var escapedFieldColumnName = SqlQuerySyntaxHelper.EscapeEntityName(dbType, p.FieldColumn.ToLower());
 
-            var useLogicalExpressions = OrOperators.Any(x => ((string)p.QueryParams[1]).Contains($" {x} "));
+            var useLogicalExpressions = p.QueryParams[1] != null &&
+                OrOperators.Any(x => ((string)p.QueryParams[1]).Contains($" {x} "));
 
             var isNull = (bool)p.QueryParams[0] && !useLogicalExpressions;
             var inverse = p.QueryParams.Length > 2 && p.QueryParams[2] is bool && (bool)p.QueryParams[2];
