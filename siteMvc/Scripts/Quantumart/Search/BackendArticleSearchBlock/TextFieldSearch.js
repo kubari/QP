@@ -141,7 +141,7 @@ export class TextFieldSearch extends FieldSearchBase {
 
   restoreBlockState(state) {
     if (state) {
-      const value = Boolean(state.isByList) ? 1 : 0;
+      const value = state.isByList ? 1 : 0;
       $(`.radioButtonsList input:radio[value=${value}]`, this._containerElement)
         .prop('checked', true).trigger('click');
 
