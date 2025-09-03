@@ -25,6 +25,7 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers
     public class ArticleFilterSearchQueryParser
     {
         private const string ContentTableAlias = "c";
+        private static readonly string[] OrOperators = { "OR", "||" };
 
         /// <summary>
         /// Возвращает значение параметра filter
@@ -253,11 +254,13 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers
             var paramName = "@field" + fieldId.Replace("-", "_");
             var escapedFieldColumnName = SqlQuerySyntaxHelper.EscapeEntityName(dbType, p.FieldColumn.ToLower());
 
-            var isNull = (bool)p.QueryParams[0];
+            var useLogicalExpressions = OrOperators.Any(x => ((string)p.QueryParams[1]).Contains($" {x} "));
+
+            var isNull = (bool)p.QueryParams[0] && !useLogicalExpressions;
             var inverse = p.QueryParams.Length > 2 && p.QueryParams[2] is bool && (bool)p.QueryParams[2];
 
-            var exactMatch = p.QueryParams.Length > 3 && p.QueryParams[3] is bool && (bool)p.QueryParams[3];
-            var startFromBegin = p.QueryParams.Length > 4 && p.QueryParams[4] is bool && (bool)p.QueryParams[4];
+            var exactMatch = p.QueryParams.Length > 3 && p.QueryParams[3] is bool && (bool)p.QueryParams[3] && !useLogicalExpressions;
+            var startFromBegin = p.QueryParams.Length > 4 && p.QueryParams[4] is bool && (bool)p.QueryParams[4] && !useLogicalExpressions;
             var listTexts = (p.QueryParams.Length > 5 && p.QueryParams[5] is object[]) ? (object[])p.QueryParams[5] : Array.Empty<object>();
 
             if (listTexts.Length > 0)
@@ -269,10 +272,12 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers
                     escapedFieldColumnName, GetTableAlias(p), SqlQuerySyntaxHelper.StrList(dbType, paramName, "v"));
             }
 
+            var field = $"{GetTableAlias(p)}.{escapedFieldColumnName}";
+
             // isnull == true
             if (isNull)
             {
-                return $"({GetTableAlias(p)}.{escapedFieldColumnName} IS {(inverse ? "NOT " : "")}NULL)";
+                return $"({field} IS {(inverse ? "NOT " : "")}NULL)";
             }
 
             // isnull == false  строка пустая
@@ -281,21 +286,34 @@ namespace Quantumart.QP8.BLL.Repository.ArticleRepositories.SearchParsers
                 return null;
             }
 
-            // Иначе формируем результат
-            var value = exactMatch ?
-                Cleaner.ToSafeSqlString(((string)p.QueryParams[1]).Trim()) :
-                Cleaner.ToSafeSqlLikeCondition(dbType, ((string)p.QueryParams[1]).Trim());
+            var rawValue = (string)p.QueryParams[1];
 
             if (exactMatch)
             {
-                return $"({GetTableAlias(p)}.{escapedFieldColumnName} {(inverse ? "<> " : "=")} '{value}')";
+                var value = Cleaner.ToSafeSqlString(rawValue.Trim());
+                return $"({field} {(inverse ? "<> " : "=")} '{value}')";
             }
 
             var like = dbType == DatabaseType.Postgres ? "ILIKE" : "LIKE";
 
-            return startFromBegin
-                ? $"({GetTableAlias(p)}.{escapedFieldColumnName} {like} '{(inverse ? "%" + value : value + "%")}')"
-                : $"({GetTableAlias(p)}.{escapedFieldColumnName} {(inverse ? "NOT " : "")}{like} '%{value}%')";
+            if (startFromBegin)
+            {
+                var value = Cleaner.ToSafeSqlLikeCondition(dbType, rawValue.Trim());
+                return $"({field} {like} '{(inverse ? "%" + value : value + "%")}')";
+            }
+
+            if (!useLogicalExpressions)
+            {
+                var value = Cleaner.ToSafeSqlLikeCondition(dbType, rawValue.Trim());
+                return $"({field} {(inverse ? "NOT " : "")}{like} '%{value}%')";
+            }
+
+            var likeExpressions = rawValue.Split(OrOperators.Select(x => $" {x} ").ToArray(),
+                    StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => $"{field} {like} '%{Cleaner.ToSafeSqlLikeCondition(dbType, x.Trim())}%'")
+                .ToArray();
+
+            return  $"{(inverse ? "NOT " : "")}({string.Join(" OR ", likeExpressions)})";
         }
 
         private static string ParseDateRangeParam(ArticleSearchQueryParam p)

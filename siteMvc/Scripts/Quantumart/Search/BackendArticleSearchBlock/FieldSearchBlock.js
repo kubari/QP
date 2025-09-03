@@ -67,9 +67,9 @@ export class FieldSearchBlock {
 
   getSearchQuery() {
     const result = [];
-    Object.keys(this._fieldSearchContainerList).forEach(fieldID => {
-      if (fieldID && this._fieldSearchContainerList[fieldID]) {
-        const fscsq = this._fieldSearchContainerList[fieldID].getSearchQuery();
+    Object.keys(this._fieldSearchContainerList).forEach(uniqueID => {
+      if (uniqueID && this._fieldSearchContainerList[uniqueID]) {
+        const fscsq = this._fieldSearchContainerList[uniqueID].getSearchQuery();
         if (fscsq) {
           result.push(fscsq);
         }
@@ -97,7 +97,7 @@ export class FieldSearchBlock {
       const that = this;
       const $options = $('option', this._fieldsComboElement);
       $.each(state, (index, st) => {
-        if (st && st.fieldID && !that._fieldSearchContainerList[st.fieldID]) {
+        if (st && st.uniqueID && !that._fieldSearchContainerList[st.uniqueID]) {
           const isValid = $options.is(function () {
             const $option = $(this);
             return st.fieldID === $option.data('field_id')
@@ -108,7 +108,14 @@ export class FieldSearchBlock {
 
           if (isValid) {
             const newContainer = that._createFieldSearchContainerInner(
-              st.fieldID, st.contentID, st.searchType, st.fieldName, st.fieldColumn, st.fieldGroup, st.referenceFieldID
+              st.fieldID,
+              st.contentID,
+              st.searchType,
+              st.fieldName,
+              st.fieldColumn,
+              st.fieldGroup,
+              st.referenceFieldID,
+              st.uniqueID
             );
 
             if (st.data) {
@@ -147,13 +154,14 @@ export class FieldSearchBlock {
     const $selectedField = $combo.find('option:selected');
     if ($selectedField) {
       const fieldID = $selectedField.data('field_id');
-      if (fieldID && !this._fieldSearchContainerList[fieldID]) {
+      if (fieldID) {
         const contentID = $selectedField.data('content_id');
         const fieldName = $selectedField.text();
         const fieldSearchType = $selectedField.data('search_type');
         const fieldColumn = $selectedField.data('field_column');
         const fieldGroup = $selectedField.data('field_group');
         const referenceFieldID = $selectedField.data('reference_field_id');
+        const uniqueID = BackendSearchBlockBase.generateElementPrefix();
         this._createFieldSearchContainerInner(
           fieldID,
           contentID,
@@ -161,7 +169,8 @@ export class FieldSearchBlock {
           fieldName,
           fieldColumn,
           fieldGroup,
-          referenceFieldID
+          referenceFieldID,
+          uniqueID
         );
       }
 
@@ -177,13 +186,22 @@ export class FieldSearchBlock {
     fieldName,
     fieldColumn,
     fieldGroup,
-    referenceFieldID
+    referenceFieldID,
+    uniqueID
   ) {
     const $fieldSearchContainerElement = $('<div />', { class: 'fieldSearchContainer' });
     $(this._fieldSearchListElement).append($fieldSearchContainerElement);
     const newFieldSearchContainer = new FieldSearchContainer(
-      $fieldSearchContainerElement.get(0), this._parentEntityId,
-      fieldID, contentID, fieldName, fieldSearchType, fieldColumn, fieldGroup, referenceFieldID
+      $fieldSearchContainerElement.get(0),
+      this._parentEntityId,
+      fieldID,
+      contentID,
+      fieldName,
+      fieldSearchType,
+      fieldColumn,
+      fieldGroup,
+      referenceFieldID,
+      uniqueID
     );
 
     newFieldSearchContainer.initialize();
@@ -191,26 +209,26 @@ export class FieldSearchBlock {
       window.EVENT_TYPE_CONRETE_FIELD_SEARCH_CONTAINER_CLOSE, this._onFieldSearchContainerCloseHandler
     );
 
-    this._fieldSearchContainerList[fieldID] = newFieldSearchContainer;
+    this._fieldSearchContainerList[uniqueID] = newFieldSearchContainer;
     return newFieldSearchContainer;
   }
 
-  _destroyFieldSearchContainer(fieldID) {
-    if (this._fieldSearchContainerList[fieldID]) {
-      const fieldSearchContainer = this._fieldSearchContainerList[fieldID];
+  _destroyFieldSearchContainer(uniqueID) {
+    if (this._fieldSearchContainerList[uniqueID]) {
+      const fieldSearchContainer = this._fieldSearchContainerList[uniqueID];
       const $fsContainer = $(fieldSearchContainer.get_ContainerElement());
       fieldSearchContainer.detachObserver(
         window.EVENT_TYPE_CONRETE_FIELD_SEARCH_CONTAINER_CLOSE, this._onFieldSearchContainerCloseHandler
       );
 
       fieldSearchContainer.dispose();
-      $q.removeProperty(this._fieldSearchContainerList, fieldID);
+      $q.removeProperty(this._fieldSearchContainerList, uniqueID);
       $fsContainer.empty().remove();
     }
   }
 
   _destroyAllFieldSearchContainers() {
-    Object.keys(this._fieldSearchContainerList).forEach(fieldId => this._destroyFieldSearchContainer(fieldId), this);
+    Object.keys(this._fieldSearchContainerList).forEach(uniqueId => this._destroyFieldSearchContainer(uniqueId), this);
   }
 
   _onAddFieldClick() {
@@ -218,7 +236,7 @@ export class FieldSearchBlock {
   }
 
   _onFieldSearchContainerClose(eventType, sender, args) {
-    this._destroyFieldSearchContainer(args.fieldID);
+    this._destroyFieldSearchContainer(args.uniqueID);
   }
 
   dispose() {
