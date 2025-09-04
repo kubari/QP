@@ -1,4 +1,3 @@
-import { BackendSearchBlockBase } from '../BackendSearchBlockBase';
 import { BooleanFieldSearch } from './BooleanFieldSearch';
 import { ClassifierFieldSearch } from './ClassifierFieldSearch';
 import { DateOrTimeRangeFieldSearch } from './DateOrTimeRangeFieldSearch';
@@ -26,7 +25,8 @@ export class FieldSearchContainer extends Observable {
     fieldSearchType,
     fieldColumn,
     fieldGroup,
-    referenceFieldId
+    referenceFieldId,
+    uniqueId
   ) {
     super();
 
@@ -39,7 +39,7 @@ export class FieldSearchContainer extends Observable {
     this._fieldGroup = fieldGroup;
     this._referenceFieldId = referenceFieldId;
     this._parentEntityId = parentEntityId;
-    this._elementIdPrefix = BackendSearchBlockBase.generateElementPrefix();
+    this._elementIdPrefix = uniqueId;
     this._onCloseButtonClickHandler = $.proxy(this._onCloseButtonClick, this);
     this._onContentOpenWindowClickHandler = $.proxy(this._onContentOpenWindowClick, this);
     this._onCloseWndClickHandler = $.proxy(this._onCloseWndClick, this);
@@ -115,7 +115,9 @@ export class FieldSearchContainer extends Observable {
   // eslint-disable-next-line camelcase
   getBlockState() {
     if (this._fieldSearch) {
-      return this._fieldSearch.getBlockState();
+      const state = this._fieldSearch.getBlockState();
+      state.uniqueID = this._elementIdPrefix;
+      return state;
     }
 
     return undefined;
@@ -391,7 +393,7 @@ export class FieldSearchContainer extends Observable {
   }
 
   _onCloseButtonClick() {
-    this.notify(window.EVENT_TYPE_CONRETE_FIELD_SEARCH_CONTAINER_CLOSE, { fieldID: this._fieldID });
+    this.notify(window.EVENT_TYPE_CONRETE_FIELD_SEARCH_CONTAINER_CLOSE, { uniqueID: this._elementIdPrefix });
   }
 
   _onCloseWndClick() {
