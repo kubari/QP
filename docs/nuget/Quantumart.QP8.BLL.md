@@ -10,6 +10,10 @@ https://nuget.qsupport.ru/packages/Quantumart.QP8.BLL
 
 ## Quantumart.QP8.BLL 3.x
 
+### Quantumart.QP8.BLL.3.5.3
+
+* В класс Field добавлена возможность клонирования (для DPC)
+
 ### Quantumart.QP8.BLL.3.5.2
 
 * Обновление Quantumart.AspNetCore до 6.1.2 (#176358)
