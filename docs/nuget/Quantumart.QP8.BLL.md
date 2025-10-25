@@ -8,11 +8,21 @@ API, предоставляющий доступ к функциональнос
 
 https://nuget.qsupport.ru/packages/Quantumart.QP8.BLL
 
-## Quantumart.QP8.BLL 3.x
+## Quantumart.QP8.BLL 3.x для .NET8
+
+### Quantumart.QP8.BLL.3.6.1
+
+* В класс Field добавлена возможность клонирования (для DPC)
 
 ### Quantumart.QP8.BLL.3.6.0
 
 * Переход на .NET 8 (#176363)
+
+## Quantumart.QP8.BLL 3.x
+
+### Quantumart.QP8.BLL.3.5.3
+
+* В класс Field добавлена возможность клонирования (для DPC)
 
 ### Quantumart.QP8.BLL.3.5.2
 

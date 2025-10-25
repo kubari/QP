@@ -3123,7 +3123,11 @@ namespace Quantumart.QP8.BLL
             }
 
             return result;
+        }
 
+        public Field Clone()
+        {
+            return (Field)MemberwiseClone();
         }
     }
 }

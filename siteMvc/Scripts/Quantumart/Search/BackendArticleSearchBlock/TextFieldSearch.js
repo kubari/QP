@@ -26,6 +26,7 @@ export class TextFieldSearch extends FieldSearchBase {
     );
     this._onByValueSelectorChangedHandler = jQuery.proxy(this._onByValueSelectorChanged, this);
     this._onIsNullCheckBoxChangeHandler = jQuery.proxy(this._onIsNullCheckBoxChange, this);
+    this._onQueryTextBoxInputHandler = jQuery.proxy(this._onQueryTextBoxInput, this);
   }
 
   initialize() {
@@ -64,6 +65,9 @@ export class TextFieldSearch extends FieldSearchBase {
 
       const $isNullCheckBoxElement = $containerElement.find(`#${isNullCheckBoxID}`);
       $isNullCheckBoxElement.bind('change', this._onIsNullCheckBoxChangeHandler);
+
+      const $queryTextBoxElement = $containerElement.find(`#${queryTextBoxID}`);
+      $queryTextBoxElement.bind('input', this._onQueryTextBoxInputHandler);
 
       $(".radioButtonsList input[type='radio']", $containerElement).click(this._onByValueSelectorChangedHandler);
 
@@ -137,7 +141,7 @@ export class TextFieldSearch extends FieldSearchBase {
 
   restoreBlockState(state) {
     if (state) {
-      const value = $q.isNull(state.isByList) ? 0 : 1;
+      const value = state.isByList ? 1 : 0;
       $(`.radioButtonsList input:radio[value=${value}]`, this._containerElement)
         .prop('checked', true).trigger('click');
 
@@ -161,7 +165,7 @@ export class TextFieldSearch extends FieldSearchBase {
           $exactMatchCheckBoxElement.prop('checked', state.exactMatch);
         }
 
-        $(this._queryTextBoxElement).val(state.text);
+        $(this._queryTextBoxElement).val(state.text).trigger('input');
       }
 
       if (this._inverseCheckBoxElement) {
@@ -175,6 +179,14 @@ export class TextFieldSearch extends FieldSearchBase {
     $(this._queryTextBoxElement).prop('disabled', this.getIsNull());
     $(this._exactMatchCheckBoxElement).prop('disabled', this.getIsNull());
     $(this._beginningStartChechBoxElement).prop('disabled', this.getIsNull());
+  }
+
+  _onQueryTextBoxInput() {
+    const logicalOperatorsCheck = /.+\s+(OR|\|\|)\s+/g;
+    const useLogicalOperators = logicalOperatorsCheck.test($(this._queryTextBoxElement).val());
+    $(this._isNullCheckBoxElement).prop('disabled', useLogicalOperators);
+    $(this._exactMatchCheckBoxElement).prop('disabled', useLogicalOperators);
+    $(this._beginningStartChechBoxElement).prop('disabled', useLogicalOperators);
   }
 
   _onByValueSelectorChanged(e) {
@@ -205,6 +217,12 @@ export class TextFieldSearch extends FieldSearchBase {
       $containerElement = null;
     }
 
+    if (this._queryTextBoxElement) {
+      let $queryTextBoxElement = $(this._queryTextBoxElement);
+      $queryTextBoxElement.unbind('input', this._onQueryTextBoxInputHandler);
+      $queryTextBoxElement = null;
+    }
+
     this._isNullCheckBoxElement = null;
     this._inverseCheckBoxElement = null;
     this._queryTextBoxElement = null;
@@ -212,11 +230,13 @@ export class TextFieldSearch extends FieldSearchBase {
     this._beginningStartChechBoxElement = null;
     this._exactMatchCheckBoxElement = null;
     this._onIsNullCheckBoxChangeHandler = null;
+    this._onQueryTextBoxInputHandler = null;
 
     super.dispose();
   }
 
   _onIsNullCheckBoxChangeHandler = null;
+  _onQueryTextBoxInputHandler = null;
 
   getIsNull() {
     if (this._isNullCheckBoxElement) {
